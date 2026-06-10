@@ -58,6 +58,10 @@ if uploaded_file:
         embeddings
     )
 
+    st.success("Vector Database Created ✅")
+
+    st.write("Chunks Created:", len(docs))
+
     # User question
     question = st.text_input(
         "Ask a question from the PDF"

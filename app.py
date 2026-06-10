@@ -13,8 +13,6 @@ from langchain_google_genai import (
     ChatGoogleGenerativeAI
 )
 
-from langchain.chains.question_answering import load_qa_chain
-
 # Load API key
 load_dotenv()
 
@@ -78,18 +76,24 @@ if uploaded_file:
             temperature=0.3
         )
 
-        # QA chain
-        chain = load_qa_chain(
-            llm,
-            chain_type="stuff"
+        context = "\n".join(
+            [doc.page_content for doc in matched_docs]
         )
 
-        # Generate answer
-        response = chain.run(
-            input_documents=matched_docs,
-            question=question
+        prompt = f"""
+Answer the question using the PDF context below.
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+        response = llm.invoke(
+            prompt
         )
 
         st.subheader("Answer")
 
-        st.write(response)
+        st.write(response.content)

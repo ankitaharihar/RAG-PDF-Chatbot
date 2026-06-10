@@ -9,9 +9,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 
 from langchain_google_genai import (
-    GoogleGenerativeAIEmbeddings,
     ChatGoogleGenerativeAI
 )
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # Load API key
 load_dotenv()
@@ -48,8 +48,8 @@ if uploaded_file:
     docs = text_splitter.split_documents(documents)
 
     # Embeddings
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001"
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
     )
 
     # Store in ChromaDB

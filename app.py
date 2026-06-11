@@ -16,6 +16,18 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 # Load API key
 load_dotenv()
 
+api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+
+if not api_key:
+    st.error("GOOGLE_API_KEY missing in .env")
+    st.stop()
+
+if not api_key.startswith("AIza"):
+    st.error("GOOGLE_API_KEY looks invalid. Use a Google AI Studio API key, not an OAuth token or access token.")
+    st.stop()
+
+os.environ["GOOGLE_API_KEY"] = api_key
+
 # Streamlit UI
 st.set_page_config(page_title="RAG PDF Chatbot")
 
@@ -76,8 +88,9 @@ if uploaded_file:
 
         # Gemini model
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            temperature=0.3
+            model="gemini-1.5-flash",
+            temperature=0.3,
+            google_api_key=api_key
         )
 
         context = "\n".join(

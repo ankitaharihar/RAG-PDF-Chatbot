@@ -1,19 +1,19 @@
 import os
+import uuid
 from pathlib import Path
+
+import bcrypt
+import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-import streamlit as st
-
+import db
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
-import uuid
-import db
 
-# Load API key
 load_dotenv()
 
 api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
@@ -24,157 +24,299 @@ if not api_key:
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=api_key
+    api_key=api_key,
 )
 
-# Streamlit UI
-st.set_page_config(page_title="RAG PDF Chatbot")
+st.set_page_config(page_title="Multi-PDF RAG Chatbot", page_icon="📄", layout="wide")
 
-st.title("📄 RAG PDF Chatbot")
-
-# initialize DB and session id
 db.init_db()
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-
-# Sidebar: saved chats
-with st.sidebar:
-    st.header("Saved Chats")
-    chats = db.get_chats(st.session_state.session_id)
-    chat_options = [f"{r[0]}: {r[1]}" for r in chats]
-    selected = None
-    if chat_options:
-        selected = st.selectbox("Open chat", options=["(new chat)"] + chat_options, index=0)
-    else:
-        st.write("No saved chats yet")
-
-    if selected and selected != "(new chat)":
-        # parse chat id
-        chat_id = int(selected.split(":", 1)[0])
-        messages = db.get_messages(chat_id)
-        # populate session history from DB
-        st.session_state.history = []
-        for role, content, _ in messages:
-            if role == "user":
-                st.session_state.history.append({"question": content, "answer": ""})
-            elif role == "bot":
-                # attach bot answer to last question
-                if st.session_state.history:
-                    st.session_state.history[-1]["answer"] = content
-            elif role == "source":
-                if st.session_state.history:
-                    # append sources list
-                    if "sources" not in st.session_state.history[-1]:
-                        st.session_state.history[-1]["sources"] = []
-                    # content expected as 'citation||excerpt'
-                    if "||" in content:
-                        citation, excerpt = content.split("||", 1)
-                    else:
-                        citation, excerpt = content, ""
-                    st.session_state.history[-1]["sources"].append({"citation": citation, "excerpt": excerpt})
 
 
-# Initialize chat history in session state
-if "history" not in st.session_state:
-    st.session_state.history = []
+def initialize_state():
+    defaults = {
+        "authenticated": False,
+        "user_id": None,
+        "username": "",
+        "email": "",
+        "session_id": str(uuid.uuid4()),
+        "history": [],
+        "current_chat_id": None,
+        "pending_chat_reset": False,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# Show chat history and clear option
-if st.session_state.history:
-    st.subheader("Chat History")
-    for entry in reversed(st.session_state.history):
-        st.markdown(f"**Q:** {entry['question']}")
-        st.markdown(f"**A:** {entry['answer']}")
-        if entry.get("sources"):
-            st.markdown("**Sources:**")
-            for i, s in enumerate(entry["sources"], start=1):
-                st.markdown(f"{i}. {s.get('citation')}")
-                if s.get('excerpt'):
-                    st.markdown(f"> {s.get('excerpt')}")
-        st.write("---")
 
-    if st.button("Clear history"):
-        st.session_state.history = []
-        st.experimental_rerun()
+def load_chat_history(chat_id: int):
+    turns = []
+    current_turn = None
 
-uploaded_files = st.file_uploader(
-    "Upload one or more PDFs",
-    type="pdf",
-    accept_multiple_files=True
-)
+    for role, content, _ in db.get_messages(chat_id):
+        if role == "user":
+            current_turn = {"question": content, "answer": "", "sources": []}
+            turns.append(current_turn)
+        elif role == "bot" and current_turn is not None:
+            current_turn["answer"] = content
+        elif role == "source" and current_turn is not None:
+            if "||" in content:
+                citation, excerpt = content.split("||", 1)
+            else:
+                citation, excerpt = content, ""
+            current_turn["sources"].append({"citation": citation, "excerpt": excerpt})
 
-if uploaded_files:
+    return turns
 
-    upload_dir = Path("uploaded_pdfs")
-    upload_dir.mkdir(exist_ok=True)
+
+def render_turns(turns):
+    for turn in turns:
+        with st.chat_message("user"):
+            st.markdown(turn["question"])
+
+        with st.chat_message("assistant"):
+            st.markdown(turn["answer"])
+            if turn.get("sources"):
+                with st.expander("Sources", expanded=False):
+                    for index, source in enumerate(turn["sources"], start=1):
+                        st.markdown(f"**{index}. {source['citation']}**")
+                        if source.get("excerpt"):
+                            st.markdown(f"> {source['excerpt']}")
+
+
+def build_citations(matched_docs):
+    citation_entries = []
+    seen = set()
+
+    for doc in matched_docs:
+        source_name = doc.metadata.get("display_source") or Path(
+            doc.metadata.get("source", "Unknown source")
+        ).name
+
+        page = doc.metadata.get("page")
+        page_label = f"Page {page + 1}" if isinstance(page, int) else "Page N/A"
+        citation = f"{source_name} ({page_label})"
+
+        if citation in seen:
+            continue
+
+        seen.add(citation)
+        excerpt = doc.page_content.strip().replace("\n", " ")
+        if len(excerpt) > 300:
+            excerpt = excerpt[:300].rsplit(" ", 1)[0] + "..."
+        citation_entries.append((citation, excerpt))
+
+    return citation_entries
+
+
+def save_uploaded_pdfs(uploaded_files, user_id: int):
+    upload_dir = Path("uploaded_pdfs") / f"user_{user_id}"
+    upload_dir.mkdir(parents=True, exist_ok=True)
 
     documents = []
 
-    for idx, uploaded_file in enumerate(uploaded_files):
-
-        safe_name = f"{idx}_{Path(uploaded_file.name).name}"
+    for index, uploaded_file in enumerate(uploaded_files):
+        safe_name = f"{index}_{Path(uploaded_file.name).name}"
         file_path = upload_dir / safe_name
 
-        # Save uploaded PDF
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        with open(file_path, "wb") as file_handle:
+            file_handle.write(uploaded_file.getbuffer())
 
-        # Load PDF
         loader = PyPDFLoader(str(file_path))
         loaded_docs = loader.load()
 
-        for doc in loaded_docs:
-            doc.metadata["display_source"] = uploaded_file.name
+        for document in loaded_docs:
+            document.metadata["display_source"] = uploaded_file.name
 
         documents.extend(loaded_docs)
 
-    st.success(f"{len(uploaded_files)} PDF(s) uploaded and read successfully ✅")
+    return documents
 
-    if not documents:
-        st.error("No readable content found in uploaded PDFs.")
-        st.stop()
 
-    # Split text into chunks
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
+def render_auth_sidebar():
+    with st.sidebar:
+        st.markdown("## 🔐 Account")
+        st.caption("Login or create an account to keep chats separate per user.")
+
+        auth_mode = st.radio("Mode", ["Login", "Sign Up"], horizontal=True)
+
+        with st.form("auth_form"):
+            username = ""
+            if auth_mode == "Sign Up":
+                username = st.text_input("Username")
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button(auth_mode)
+
+        if submitted:
+            email_value = email.strip().lower()
+
+            if not email_value or not password:
+                st.error("Email and password are required.")
+                return
+
+            if auth_mode == "Sign Up":
+                if not username.strip():
+                    st.error("Username is required for sign up.")
+                    return
+
+                existing_user = db.get_user_by_email(email_value)
+                if existing_user:
+                    st.error("An account with this email already exists.")
+                    return
+
+                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                user_id = db.create_user(username.strip(), email_value, password_hash)
+
+                st.session_state.authenticated = True
+                st.session_state.user_id = user_id
+                st.session_state.username = username.strip()
+                st.session_state.email = email_value
+                st.session_state.history = []
+                st.session_state.current_chat_id = None
+                st.success("Account created successfully.")
+                st.rerun()
+
+            user = db.get_user_by_email(email_value)
+            if not user:
+                st.error("No account found for this email.")
+                return
+
+            stored_hash = user[3]
+            if not bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8")):
+                st.error("Incorrect password.")
+                return
+
+            st.session_state.authenticated = True
+            st.session_state.user_id = user[0]
+            st.session_state.username = user[1]
+            st.session_state.email = user[2]
+            st.session_state.history = []
+            st.session_state.current_chat_id = None
+            st.success("Logged in successfully.")
+            st.rerun()
+
+
+initialize_state()
+
+if not st.session_state.authenticated:
+    render_auth_sidebar()
+    st.title("📄 Multi-PDF RAG Chatbot")
+    st.subheader("Login required")
+    st.info("Create an account or log in from the sidebar to access your private chats and PDF uploads.")
+    st.markdown(
+        """
+        This version already supports:
+        - Multi-PDF upload
+        - ChromaDB vector search
+        - OpenRouter answers
+        - Source citations
+        - SQLite-backed chat history
+        - User accounts with bcrypt password hashing
+        """
     )
+    st.stop()
 
-    docs = text_splitter.split_documents(documents)
 
-    # Embeddings
-    embeddings = HuggingFaceEmbeddings(
-        model_name="all-MiniLM-L6-v2"
-    )
+user_record = db.get_user_by_id(st.session_state.user_id)
+if user_record:
+    st.session_state.username = user_record[1]
+    st.session_state.email = user_record[2]
 
-    # Store in ChromaDB
-    vectorstore = Chroma.from_documents(
-        docs,
-        embeddings
-    )
 
-    st.success("Vector Database Created ✅")
+with st.sidebar:
+    st.markdown("## 👤 Profile")
+    st.markdown(f"**{st.session_state.username}**")
+    st.caption(st.session_state.email)
 
-    st.write("Chunks Created:", len(docs))
-    st.write("Files Indexed:", len(uploaded_files))
+    if st.button("➕ New Chat", use_container_width=True):
+        st.session_state.history = []
+        st.session_state.current_chat_id = None
+        st.rerun()
 
-    # User question
-    question = st.text_input(
-        "Ask a question from the uploaded PDFs"
-    )
+    st.markdown("## 💬 Chat History")
+    user_chats = db.get_chats_for_user(st.session_state.user_id)
+    chat_options = ["(new chat)"] + [f"{chat_id}: {title}" for chat_id, title, _ in user_chats]
 
-    if question:
-
-        # Similarity search
-        matched_docs = vectorstore.similarity_search(
-            question
+    default_index = 0
+    if st.session_state.current_chat_id is not None:
+        current_label = next(
+            (f"{chat_id}: {title}" for chat_id, title, _ in user_chats if chat_id == st.session_state.current_chat_id),
+            "(new chat)",
         )
+        if current_label in chat_options:
+            default_index = chat_options.index(current_label)
 
-        context = "\n".join(
-            [doc.page_content for doc in matched_docs]
-        )
+    selected_chat_label = st.selectbox("Open saved chat", chat_options, index=default_index)
 
-        prompt = f"""
-Answer the question using the provided context.
+    if selected_chat_label == "(new chat)":
+        if st.session_state.current_chat_id is not None:
+            st.session_state.current_chat_id = None
+            st.session_state.history = []
+    else:
+        selected_chat_id = int(selected_chat_label.split(":", 1)[0])
+        if st.session_state.current_chat_id != selected_chat_id:
+            st.session_state.current_chat_id = selected_chat_id
+            st.session_state.history = load_chat_history(selected_chat_id)
+
+    st.markdown("## 📄 Upload PDFs")
+    uploaded_files = st.file_uploader(
+        "Upload one or more PDFs",
+        type="pdf",
+        accept_multiple_files=True,
+    )
+
+    st.divider()
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_id = None
+        st.session_state.username = ""
+        st.session_state.email = ""
+        st.session_state.history = []
+        st.session_state.current_chat_id = None
+        st.rerun()
+
+
+st.title("📄 Multi-PDF RAG Assistant")
+st.caption("Ask questions in a chat-style interface, and each answer includes source citations.")
+
+if st.session_state.history:
+    render_turns(st.session_state.history)
+
+if not uploaded_files:
+    st.info("Upload one or more PDFs from the sidebar to start chatting.")
+    st.stop()
+
+documents = save_uploaded_pdfs(uploaded_files, st.session_state.user_id)
+
+if not documents:
+    st.error("No readable content found in the uploaded PDFs.")
+    st.stop()
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+split_documents = text_splitter.split_documents(documents)
+
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vectorstore = Chroma.from_documents(split_documents, embeddings)
+
+st.success("Vector database ready ✅")
+
+question = st.chat_input("Ask a question from the uploaded PDFs")
+
+if question:
+    matched_docs = vectorstore.similarity_search(question)
+    context = "\n".join(doc.page_content for doc in matched_docs)
+
+    recent_turns = st.session_state.history[-4:]
+    memory_context = "\n\n".join(
+        f"User: {turn['question']}\nAssistant: {turn['answer']}" for turn in recent_turns
+    )
+
+    prompt = f"""
+You are a helpful PDF assistant.
+Answer using the provided context and the recent conversation if it is relevant.
+
+Recent conversation:
+{memory_context if memory_context else 'None'}
 
 Context:
 {context}
@@ -183,73 +325,36 @@ Question:
 {question}
 """
 
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-20b",
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    answer = response.choices[0].message.content
+    citation_entries = build_citations(matched_docs)
+
+    if st.session_state.current_chat_id is None:
+        chat_title = ", ".join(file.name for file in uploaded_files) if uploaded_files else "New Chat"
+        st.session_state.current_chat_id = db.get_or_create_session_chat(
+            st.session_state.session_id,
+            chat_title,
+            user_id=st.session_state.user_id,
         )
 
-        answer = response.choices[0].message.content
+    db.add_message(st.session_state.current_chat_id, "user", question)
+    db.add_message(st.session_state.current_chat_id, "bot", answer)
+    for citation, excerpt in citation_entries:
+        db.add_message(st.session_state.current_chat_id, "source", f"{citation}||{excerpt}")
 
-        citations = []
-        citation_entries = []
-        seen = set()
+    st.session_state.history.append(
+        {
+            "question": question,
+            "answer": answer,
+            "sources": [
+                {"citation": citation, "excerpt": excerpt}
+                for citation, excerpt in citation_entries
+            ],
+        }
+    )
 
-        for doc in matched_docs:
-            source_name = doc.metadata.get("display_source") or Path(
-                doc.metadata.get("source", "Unknown source")
-            ).name
-
-            page = doc.metadata.get("page")
-            if isinstance(page, int):
-                page_label = f"Page {page + 1}"
-            else:
-                page_label = "Page N/A"
-
-            citation = f"{source_name} ({page_label})"
-
-            if citation not in seen:
-                seen.add(citation)
-                # create a short excerpt for context
-                excerpt = doc.page_content.strip().replace("\n", " ")
-                if len(excerpt) > 300:
-                    excerpt = excerpt[:300].rsplit(" ", 1)[0] + "..."
-                citation_entries.append((citation, excerpt))
-
-        st.subheader("Answer")
-        st.write(answer)
-
-        if citation_entries:
-            st.subheader("Sources")
-            for idx, (citation, excerpt) in enumerate(citation_entries, start=1):
-                st.markdown(f"**{idx}. {citation}**")
-                st.markdown(f"> {excerpt}")
-                st.write("")
-
-        # Append to chat history
-        entry_sources = [
-            {"citation": citation, "excerpt": excerpt}
-            for (citation, excerpt) in citation_entries
-        ]
-
-        st.session_state.history.append(
-            {"question": question, "answer": answer, "sources": entry_sources}
-        )
-        # Persist to SQLite
-        session_id = st.session_state.session_id
-        title = ", ".join([f.name for f in uploaded_files]) if uploaded_files else "Session Chat"
-        chat_id = st.session_state.get("chat_id") or db.get_or_create_session_chat(session_id, title)
-        st.session_state["chat_id"] = chat_id
-
-        try:
-            db.add_message(chat_id, "user", question)
-            db.add_message(chat_id, "bot", answer)
-            for (citation, excerpt) in citation_entries:
-                db.add_message(chat_id, "source", f"{citation}||{excerpt}")
-        except Exception:
-            # avoid crashing the app if DB write fails
-            pass
+    st.rerun()

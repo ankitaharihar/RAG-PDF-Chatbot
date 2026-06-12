@@ -9,3 +9,6 @@ __pycache__/
 .DS_Store
 .vscode/
 *.pdf
+chat_history.db
+pdf_library/
+uploaded_pdfs/

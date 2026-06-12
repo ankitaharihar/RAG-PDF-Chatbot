@@ -1,0 +1,18 @@
+<svg width="360" height="96" viewBox="0 0 360 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="96" rx="24" fill="#0B1220"/>
+  <rect x="18" y="18" width="60" height="60" rx="18" fill="url(#paint0_linear)"/>
+  <path d="M34 33H62V63H34V33Z" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M40 42H56" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 50H56" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 58H50" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M71 54C76 54 80 50 80 45C80 40 76 36 71 36H66V54H71Z" fill="white" fill-opacity="0.9"/>
+  <path d="M77 59C81 59 84 56 84 52C84 48 81 45 77 45H73V59H77Z" fill="white" fill-opacity="0.7"/>
+  <text x="96" y="46" fill="white" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Multi-PDF RAG</text>
+  <text x="96" y="68" fill="#93C5FD" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="500">Document Intelligence Platform</text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="18" y1="18" x2="78" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+  </defs>
+</svg>

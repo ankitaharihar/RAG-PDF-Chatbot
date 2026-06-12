@@ -1,43 +1,110 @@
-# RAG-PDF-Chatbot
+# Multi-PDF RAG Chatbot
 
-A small Retrieval-Augmented Generation (RAG) demo that lets you chat with the contents of PDF documents.
+AI Document Intelligence Platform for chatting with multiple PDFs using OpenRouter, ChromaDB, and a persistent SQLite-backed PDF library.
 
-Prerequisites
+## Live Demo
 
-- Python 3.10+ (3.11 recommended)
-- Virtual environment (venv) or equivalent
+Live URL: https://your-app-url
 
-Install dependencies
+## Screenshots
+
+Add screenshots here after deployment:
+
+- `assets/screenshots/login.png`
+- `assets/screenshots/dashboard.png`
+- `assets/screenshots/chat.png`
+
+## Features
+
+- Login and signup with bcrypt password hashing
+- Multi-PDF upload with personal PDF library
+- Select specific PDFs for each chat
+- ChromaDB vector search across uploaded documents
+- OpenRouter responses with source citations
+- Chat history saved per user in SQLite
+- Conversation memory for follow-up questions
+- ChatGPT-style UI with avatars and dark theme
+
+## Architecture
+
+```mermaid
+flowchart TD
+	U[User] --> S[Streamlit UI]
+	S --> A[Auth Layer\nSQLite + bcrypt]
+	S --> L[PDF Library\nSQLite metadata + stored files]
+	S --> V[ChromaDB Vector Store]
+	V --> O[OpenRouter LLM]
+	O --> S
+	S --> D[SQLite Chats + Messages]
+```
+
+## Tech Stack
+
+- Frontend: Streamlit
+- Backend: Python
+- AI: LangChain, OpenRouter
+- Vector DB: ChromaDB
+- Database: SQLite
+- Authentication: bcrypt
+- Deployment: Render
+
+## Installation
+
+### 1. Create and activate a virtual environment
 
 ```powershell
 python -m venv venv
 venv\Scripts\Activate.ps1
+```
+
+### 2. Install dependencies
+
+```powershell
 pip install -r requirements.txt
 ```
 
-Run the app
+### 3. Set up environment variables
 
-```powershell
-python app.py
+Create a `.env` file:
+
+```env
+OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
-Run tests
+### 4. Run the app locally
 
 ```powershell
-pytest -q
-# or
-python test_openrouter.py
+streamlit run app.py
 ```
 
-Notes
+## Deployment on Render
 
-- Edit `requirements.txt` to pin or update dependencies.
-- The main entrypoint is `app.py`.
+This repository includes `render.yaml` for a Streamlit web service.
 
-Contributing
+1. Push the repo to GitHub.
+2. Create a new Render Web Service from the repo.
+3. Add `OPENROUTER_API_KEY` as an environment variable in Render.
+4. Deploy using the provided `render.yaml` or the Render dashboard.
 
-- Feel free to open issues or submit PRs.
+## Testing
 
-License
+```powershell
+python -m py_compile app.py db.py
+```
 
-- MIT
+## Project Structure
+
+- `app.py` - Streamlit application
+- `db.py` - SQLite helper functions
+- `requirements.txt` - Python dependencies
+- `render.yaml` - Render deployment config
+
+## Notes
+
+- Uploaded PDFs are stored in `pdf_library/` per user.
+- Existing chats can be reopened from the sidebar.
+- Chat answers include cited PDF sources and page numbers.
+
+## License
+
+MIT

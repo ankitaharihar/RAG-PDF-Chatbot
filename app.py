@@ -54,7 +54,12 @@ if uploaded_files:
 
         # Load PDF
         loader = PyPDFLoader(str(file_path))
-        documents.extend(loader.load())
+        loaded_docs = loader.load()
+
+        for doc in loaded_docs:
+            doc.metadata["display_source"] = uploaded_file.name
+
+        documents.extend(loaded_docs)
 
     st.success(f"{len(uploaded_files)} PDF(s) uploaded and read successfully ✅")
 
@@ -124,6 +129,31 @@ Question:
 
         answer = response.choices[0].message.content
 
+        citations = []
+        seen = set()
+
+        for doc in matched_docs:
+            source_name = doc.metadata.get("display_source") or Path(
+                doc.metadata.get("source", "Unknown source")
+            ).name
+
+            page = doc.metadata.get("page")
+            if isinstance(page, int):
+                page_label = f"Page {page + 1}"
+            else:
+                page_label = "Page N/A"
+
+            citation = f"{source_name} ({page_label})"
+
+            if citation not in seen:
+                seen.add(citation)
+                citations.append(citation)
+
         st.subheader("Answer")
 
         st.write(answer)
+
+        if citations:
+            st.subheader("Sources")
+            for idx, citation in enumerate(citations, start=1):
+                st.write(f"{idx}. {citation}")

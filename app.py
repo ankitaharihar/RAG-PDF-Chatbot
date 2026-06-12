@@ -514,6 +514,12 @@ with main_header:
 if st.session_state.history:
     render_turns(st.session_state.history)
 
+selected_pdf_ids = st.session_state.active_pdf_ids[:]
+if not selected_pdf_ids and db.get_pdfs_for_user(st.session_state.user_id):
+    selected_pdf_ids = [row[0] for row in db.get_pdfs_for_user(st.session_state.user_id)]
+
+selected_pdf_rows = db.get_pdfs_by_ids(st.session_state.user_id, selected_pdf_ids)
+
 summary_cols = st.columns(3)
 with summary_cols[0]:
     st.markdown(
@@ -545,12 +551,6 @@ with summary_cols[2]:
         """,
         unsafe_allow_html=True,
     )
-
-selected_pdf_ids = st.session_state.active_pdf_ids[:]
-if not selected_pdf_ids and db.get_pdfs_for_user(st.session_state.user_id):
-    selected_pdf_ids = [row[0] for row in db.get_pdfs_for_user(st.session_state.user_id)]
-
-selected_pdf_rows = db.get_pdfs_by_ids(st.session_state.user_id, selected_pdf_ids)
 
 if not selected_pdf_rows:
     st.info("Upload PDFs from the sidebar and select the ones you want to chat with.")

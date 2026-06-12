@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -29,23 +30,37 @@ st.set_page_config(page_title="RAG PDF Chatbot")
 
 st.title("📄 RAG PDF Chatbot")
 
-uploaded_file = st.file_uploader(
-    "Upload a PDF",
-    type="pdf"
+uploaded_files = st.file_uploader(
+    "Upload one or more PDFs",
+    type="pdf",
+    accept_multiple_files=True
 )
 
-if uploaded_file:
+if uploaded_files:
 
-    # Save uploaded PDF
-    with open(uploaded_file.name, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    upload_dir = Path("uploaded_pdfs")
+    upload_dir.mkdir(exist_ok=True)
 
-    st.success("PDF Uploaded Successfully ✅")
+    documents = []
 
-    # Load PDF
-    loader = PyPDFLoader(uploaded_file.name)
+    for idx, uploaded_file in enumerate(uploaded_files):
 
-    documents = loader.load()
+        safe_name = f"{idx}_{Path(uploaded_file.name).name}"
+        file_path = upload_dir / safe_name
+
+        # Save uploaded PDF
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # Load PDF
+        loader = PyPDFLoader(str(file_path))
+        documents.extend(loader.load())
+
+    st.success(f"{len(uploaded_files)} PDF(s) uploaded and read successfully ✅")
+
+    if not documents:
+        st.error("No readable content found in uploaded PDFs.")
+        st.stop()
 
     # Split text into chunks
     text_splitter = RecursiveCharacterTextSplitter(
@@ -69,10 +84,11 @@ if uploaded_file:
     st.success("Vector Database Created ✅")
 
     st.write("Chunks Created:", len(docs))
+    st.write("Files Indexed:", len(uploaded_files))
 
     # User question
     question = st.text_input(
-        "Ask a question from the PDF"
+        "Ask a question from the uploaded PDFs"
     )
 
     if question:

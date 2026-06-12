@@ -10,5 +10,7 @@ __pycache__/
 .vscode/
 *.pdf
 chat_history.db
+users.db
+chroma_db/
 pdf_library/
 uploaded_pdfs/

@@ -86,6 +86,10 @@ This repository includes `render.yaml` for a Streamlit web service.
 3. Add `OPENROUTER_API_KEY` as an environment variable in Render.
 4. Deploy using the provided `render.yaml` or the Render dashboard.
 
+### Important note
+
+Render free-tier instances do not provide durable local storage, so SQLite data, uploaded PDFs, and ChromaDB indexes can be lost on restart or redeploy. For a demo, this is acceptable. For production, move to PostgreSQL and cloud storage.
+
 ## Testing
 
 ```powershell

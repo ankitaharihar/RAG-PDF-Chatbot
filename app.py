@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
 
 import streamlit as st
 
@@ -7,26 +8,21 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_community.vectorstores import Chroma
-
-from langchain_google_genai import (
-    ChatGoogleGenerativeAI
-)
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # Load API key
 load_dotenv()
 
-api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
 
 if not api_key:
-    st.error("GOOGLE_API_KEY missing in .env")
+    st.error("OPENROUTER_API_KEY missing in .env")
     st.stop()
 
-if not api_key.startswith("AIza"):
-    st.error("GOOGLE_API_KEY looks invalid. Use a Google AI Studio API key, not an OAuth token or access token.")
-    st.stop()
-
-os.environ["GOOGLE_API_KEY"] = api_key
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=api_key
+)
 
 # Streamlit UI
 st.set_page_config(page_title="RAG PDF Chatbot")
@@ -86,19 +82,12 @@ if uploaded_file:
             question
         )
 
-        # Gemini model
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            temperature=0.3,
-            google_api_key=api_key
-        )
-
         context = "\n".join(
             [doc.page_content for doc in matched_docs]
         )
 
         prompt = f"""
-Answer the question using the PDF context below.
+Answer the question using the provided context.
 
 Context:
 {context}
@@ -107,10 +96,18 @@ Question:
 {question}
 """
 
-        response = llm.invoke(
-            prompt
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
         )
+
+        answer = response.choices[0].message.content
 
         st.subheader("Answer")
 
-        st.write(response.content)
+        st.write(answer)

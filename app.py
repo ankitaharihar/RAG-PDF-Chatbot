@@ -12,8 +12,29 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pathlib import Path
 
+from langchain_community.document_loaders import PyPDFLoader
 
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+from langchain_community.vectorstores import Chroma
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from utils.pdf_utils import (
+    save_uploaded_pdfs,
+    load_documents_from_pdfs,
+    build_citations
+)
+
+from utils.rag_utils import (
+    create_vectorstore,
+    retrieve_context
+)
+
+from utils.ui_utils import (
+    render_turns
+)
 def apply_ui_theme():
         st.markdown(
                 """
@@ -562,21 +583,18 @@ if not documents:
     st.error("No readable content found in the selected PDFs.")
     st.stop()
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-split_documents = text_splitter.split_documents(documents)
-
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectorstore = Chroma.from_documents(split_documents, embeddings)
-
+vectorstore = create_vectorstore(
+    documents
+)
 st.success("Vector database ready ✅")
 st.caption(f"Using {len(selected_pdf_rows)} PDF(s) from your library.")
 
 question = st.chat_input("Ask a question from the selected PDFs")
 
 if question:
-    matched_docs = vectorstore.similarity_search(question)
-    context = "\n".join(doc.page_content for doc in matched_docs)
-
+   matched_docs, context = retrieve_context(
+    vectorstore,
+    question)
     recent_turns = st.session_state.history[-st.session_state.memory_turns :]
     memory_context = "\n\n".join(
         f"User: {turn['question']}\nAssistant: {turn['answer']}" for turn in recent_turns

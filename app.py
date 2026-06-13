@@ -7,7 +7,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-import db
+import database.db as db
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma

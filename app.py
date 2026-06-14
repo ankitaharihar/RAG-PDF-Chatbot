@@ -554,6 +554,13 @@ Question:
         )
 
     answer = response.choices[0].message.content
+    if answer:
+     st.download_button(
+        "📥 Download Response",
+        answer,
+        file_name="pdf_response.txt",
+        mime="text/plain"
+    )
     citation_entries = build_citations(matched_docs)
 
     if st.session_state.current_chat_id is None:

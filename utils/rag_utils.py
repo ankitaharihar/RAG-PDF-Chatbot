@@ -1,4 +1,5 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import streamlit as st
 
 from langchain_community.embeddings import (
     HuggingFaceEmbeddings
@@ -7,6 +8,13 @@ from langchain_community.embeddings import (
 from langchain_community.vectorstores import (
     Chroma
 )
+
+
+@st.cache_resource
+def get_embeddings():
+    return HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
+    )
 
 
 def create_vectorstore(documents):
@@ -20,9 +28,7 @@ def create_vectorstore(documents):
         documents
     )
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="all-MiniLM-L6-v2"
-    )
+    embeddings = get_embeddings()
 
     vectorstore = Chroma.from_documents(
         split_docs,

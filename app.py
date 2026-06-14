@@ -8,19 +8,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 import database.db as db
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pathlib import Path
 
-from langchain_community.document_loaders import PyPDFLoader
-
-from langchain_community.embeddings import HuggingFaceEmbeddings
-
-from langchain_community.vectorstores import Chroma
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from utils.pdf_utils import (
     save_uploaded_pdfs,
     load_documents_from_pdfs,
@@ -35,6 +23,7 @@ from utils.rag_utils import (
 from utils.ui_utils import (
     render_turns
 )
+
 def apply_ui_theme():
         st.markdown(
                 """
@@ -146,7 +135,7 @@ def apply_ui_theme():
                 unsafe_allow_html=True,
         )
 
-
+st.set_page_config(page_title="Multi-PDF RAG Chatbot", page_icon="📄", layout="wide")
 apply_ui_theme()
 
 
@@ -163,7 +152,7 @@ client = OpenAI(
     api_key=api_key,
 )
 
-st.set_page_config(page_title="Multi-PDF RAG Chatbot", page_icon="📄", layout="wide")
+
 
 db.init_db()
 
@@ -204,89 +193,6 @@ def load_chat_history(chat_id: int):
             current_turn["sources"].append({"citation": citation, "excerpt": excerpt})
 
     return turns
-
-
-def render_turns(turns):
-    for turn in turns:
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(turn["question"])
-
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(turn["answer"])
-            if turn.get("sources"):
-                with st.expander("Sources", expanded=False):
-                    for index, source in enumerate(turn["sources"], start=1):
-                        st.markdown(f"**{index}. {source['citation']}**")
-                        if source.get("excerpt"):
-                            st.markdown(f"> {source['excerpt']}")
-
-
-def build_citations(matched_docs):
-    citation_entries = []
-    seen = set()
-
-    for doc in matched_docs:
-        source_name = doc.metadata.get("display_source") or Path(
-            doc.metadata.get("source", "Unknown source")
-        ).name
-        page = doc.metadata.get("page")
-        page_label = f"Page {page + 1}" if isinstance(page, int) else "Page N/A"
-        citation = f"{source_name} ({page_label})"
-
-        if citation in seen:
-            continue
-
-        seen.add(citation)
-        excerpt = doc.page_content.strip().replace("\n", " ")
-        if len(excerpt) > 300:
-            excerpt = excerpt[:300].rsplit(" ", 1)[0] + "..."
-        citation_entries.append((citation, excerpt))
-
-    return citation_entries
-
-
-def save_uploaded_pdfs(uploaded_files, user_id: int):
-    library_dir = Path("pdf_library") / f"user_{user_id}"
-    library_dir.mkdir(parents=True, exist_ok=True)
-
-    new_pdf_ids = []
-    for uploaded_file in uploaded_files:
-        stored_name = f"{uuid.uuid4().hex}_{Path(uploaded_file.name).name}"
-        file_path = library_dir / stored_name
-        with open(file_path, "wb") as file_handle:
-            file_handle.write(uploaded_file.getbuffer())
-
-        pdf_id = db.add_pdf(
-            user_id=user_id,
-            original_name=uploaded_file.name,
-            stored_name=stored_name,
-            stored_path=str(file_path),
-        )
-        new_pdf_ids.append(pdf_id)
-
-    return new_pdf_ids
-
-
-def load_documents_from_pdfs(pdf_rows):
-    documents = []
-
-    for pdf_row in pdf_rows:
-        pdf_id, original_name, _stored_name, stored_path, _created_at = pdf_row
-        file_path = Path(stored_path)
-        if not file_path.exists():
-            continue
-
-        loader = PyPDFLoader(str(file_path))
-        loaded_docs = loader.load()
-
-        for document in loaded_docs:
-            document.metadata["display_source"] = original_name
-            document.metadata["pdf_id"] = pdf_id
-
-        documents.extend(loaded_docs)
-
-    return documents
-
 
 def render_auth_sidebar():
     with st.sidebar:
@@ -372,28 +278,26 @@ if not st.session_state.authenticated:
         """,
         unsafe_allow_html=True,
     )
-    cols = st.columns(4)
-    stats = [
-        ("Login", "Secure"),
-        ("PDF Library", "Persistent"),
-        ("Chat Memory", "Enabled"),
-        ("Sources", "Cited"),
-    ]
-    for column, (label, value) in zip(cols, stats):
-        with column:
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                  <div class="metric-label">{label}</div>
-                  <div class="metric-value">{value}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    
+    st.markdown("""
+# 📄 Multi-PDF AI Study Assistant
 
-    st.info("Create an account or log in from the sidebar to access your private chats and PDF library.")
-    st.stop()
+Upload PDFs and instantly:
 
+✅ Chat with documents
+
+✅ Generate Summaries
+
+✅ Create Study Notes
+
+✅ Generate MCQs
+
+✅ Create Interview Questions
+
+✅ View Source Citations
+
+Login from the sidebar to get started.
+""")
 
 user_record = db.get_user_by_id(st.session_state.user_id)
 if user_record:
@@ -520,18 +424,6 @@ with st.sidebar:
 
 st.title("📄 Multi-PDF RAG Assistant")
 
-main_header = st.container()
-with main_header:
-    st.markdown(
-        """
-        <div class="hero-card">
-          <p class="hero-title">Multi-PDF RAG Assistant</p>
-          <p class="hero-subtitle">Chat with your saved PDF library in a clean, responsive interface with citations and memory.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 if st.session_state.history:
     render_turns(st.session_state.history)
 
@@ -541,69 +433,104 @@ if not selected_pdf_ids and db.get_pdfs_for_user(st.session_state.user_id):
 
 selected_pdf_rows = db.get_pdfs_by_ids(st.session_state.user_id, selected_pdf_ids)
 
-summary_cols = st.columns(3)
-with summary_cols[0]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-          <div class="metric-label">Active PDFs</div>
-          <div class="metric-value">{len(selected_pdf_rows)}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-with summary_cols[1]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-          <div class="metric-label">Memory Window</div>
-          <div class="metric-value">{st.session_state.memory_turns}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-with summary_cols[2]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-          <div class="metric-label">Chat Mode</div>
-          <div class="metric-value">SaaS UI</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+
 
 if not selected_pdf_rows:
     st.info("Upload PDFs from the sidebar and select the ones you want to chat with.")
     st.stop()
 
-documents = load_documents_from_pdfs(selected_pdf_rows)
+
+with st.spinner("📚 Loading PDFs..."):
+    documents = load_documents_from_pdfs(
+        selected_pdf_rows
+    )
 
 if not documents:
     st.error("No readable content found in the selected PDFs.")
     st.stop()
 
-vectorstore = create_vectorstore(
-    documents
+pdf_key = "_".join(
+    str(row[0]) for row in selected_pdf_rows
 )
+
+if (
+    "vectorstore" not in st.session_state
+    or st.session_state.get("pdf_key") != pdf_key
+):
+    st.session_state.vectorstore = create_vectorstore(
+        documents
+    )
+    st.session_state.pdf_key = pdf_key
+
+vectorstore = st.session_state.vectorstore
 st.success("Vector database ready ✅")
 st.caption(f"Using {len(selected_pdf_rows)} PDF(s) from your library.")
 
-question = st.chat_input("Ask a question from the selected PDFs")
+col1, col2, col3, col4 = st.columns(4)
+
+summary_btn = col1.button("📝 Summary")
+notes_btn = col2.button("📚 Notes")
+mcq_btn = col3.button("❓ MCQs")
+interview_btn = col4.button("🎯 Interview")
+
+question = None
+
+if summary_btn:
+    question = """
+    Generate a complete summary of the uploaded PDFs.
+    """
+
+elif notes_btn:
+    question = """
+    Create detailed study notes with headings,
+    bullet points and key concepts.
+    """
+
+elif mcq_btn:
+    question = """
+    Generate 15 MCQs from the uploaded PDFs.
+
+    Format:
+
+    Q1.
+    A.
+    B.
+    C.
+    D.
+
+    Correct Answer:
+    """
+
+elif interview_btn:
+    question = """
+    Generate interview questions and answers
+    from the uploaded PDFs.
+    """
+
+user_input = st.chat_input(
+    "Ask a question from the selected PDFs"
+)
+
+if user_input:
+    question = user_input
 
 if question:
-   matched_docs, context = retrieve_context(
-    vectorstore,
-    question)
-    recent_turns = st.session_state.history[-st.session_state.memory_turns :]
+    matched_docs, context = retrieve_context(
+        vectorstore,
+        question
+    )
+
+    recent_turns = st.session_state.history[
+        -st.session_state.memory_turns:
+    ]
+
     memory_context = "\n\n".join(
-        f"User: {turn['question']}\nAssistant: {turn['answer']}" for turn in recent_turns
+        f"User: {turn['question']}\nAssistant: {turn['answer']}"
+        for turn in recent_turns
     )
 
     prompt = f"""
 You are a helpful PDF assistant.
-Use the selected PDF context first.
-Use the recent conversation only when it helps resolve the question.
 
 Recent conversation:
 {memory_context if memory_context else 'None'}
@@ -615,18 +542,26 @@ Question:
 {question}
 """
 
-    response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
-        messages=[{"role": "user", "content": prompt}],
-    )
+    with st.spinner("🧠 Analyzing PDFs..."):
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
 
     answer = response.choices[0].message.content
     citation_entries = build_citations(matched_docs)
 
     if st.session_state.current_chat_id is None:
         chat_title = ", ".join(row[1] for row in selected_pdf_rows[:3])
+
         if len(selected_pdf_rows) > 3:
             chat_title += "..."
+
         if not chat_title:
             chat_title = "New Chat"
 
@@ -637,19 +572,39 @@ Question:
             pdf_ids=selected_pdf_ids,
         )
     else:
-        db.set_chat_pdf_ids(st.session_state.current_chat_id, selected_pdf_ids)
+        db.set_chat_pdf_ids(
+            st.session_state.current_chat_id,
+            selected_pdf_ids
+        )
 
-    db.add_message(st.session_state.current_chat_id, "user", question)
-    db.add_message(st.session_state.current_chat_id, "bot", answer)
+    db.add_message(
+        st.session_state.current_chat_id,
+        "user",
+        question
+    )
+
+    db.add_message(
+        st.session_state.current_chat_id,
+        "bot",
+        answer
+    )
+
     for citation, excerpt in citation_entries:
-        db.add_message(st.session_state.current_chat_id, "source", f"{citation}||{excerpt}")
+        db.add_message(
+            st.session_state.current_chat_id,
+            "source",
+            f"{citation}||{excerpt}"
+        )
 
     st.session_state.history.append(
         {
             "question": question,
             "answer": answer,
             "sources": [
-                {"citation": citation, "excerpt": excerpt}
+                {
+                    "citation": citation,
+                    "excerpt": excerpt
+                }
                 for citation, excerpt in citation_entries
             ],
         }

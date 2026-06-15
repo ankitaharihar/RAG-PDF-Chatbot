@@ -422,7 +422,12 @@ with st.sidebar:
         st.rerun()
 
 
-st.title("📄 Multi-PDF RAG Assistant")
+st.markdown("""
+# 📚 AI Study Assistant
+
+Upload PDFs, generate notes, summaries,
+MCQs and interview questions instantly.
+""")
 
 if st.session_state.history:
     render_turns(st.session_state.history)
@@ -463,16 +468,32 @@ if (
     st.session_state.pdf_key = pdf_key
 
 vectorstore = st.session_state.vectorstore
-st.success("Vector database ready ✅")
-st.caption(f"Using {len(selected_pdf_rows)} PDF(s) from your library.")
 
 col1, col2, col3, col4 = st.columns(4)
 
-summary_btn = col1.button("📝 Summary")
-notes_btn = col2.button("📚 Notes")
-mcq_btn = col3.button("❓ MCQs")
-interview_btn = col4.button("🎯 Interview")
+with col1:
+    summary_btn = st.button(
+        "📝 Generate Summary",
+        use_container_width=True
+    )
 
+with col2:
+    notes_btn = st.button(
+        "📚 Study Notes",
+        use_container_width=True
+    )
+
+with col3:
+    mcq_btn = st.button(
+        "❓ Generate MCQs",
+        use_container_width=True
+    )
+
+with col4:
+    interview_btn = st.button(
+        "🎯 Interview Prep",
+        use_container_width=True
+    )
 question = None
 
 if summary_btn:

@@ -1,4 +1,4 @@
-# Multi-PDF RAG Chatbot
+# Multi-PDF RAG Chatbot..
 
 AI Document Intelligence Platform for chatting with multiple PDFs using OpenRouter, ChromaDB, and a persistent SQLite-backed PDF library.
 

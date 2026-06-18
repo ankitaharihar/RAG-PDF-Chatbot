@@ -269,35 +269,7 @@ initialize_state()
 
 if not st.session_state.authenticated:
     render_auth_sidebar()
-    st.markdown(
-        """
-        <div class="hero-card">
-          <p class="hero-title">AI Document Intelligence Platform</p>
-          <p class="hero-subtitle">Secure multi-PDF chat with citations, memory, and a persistent personal library.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    
-    st.markdown("""
-# 📄 Multi-PDF AI Study Assistant
-
-Upload PDFs and instantly:
-
-✅ Chat with documents
-
-✅ Generate Summaries
-
-✅ Create Study Notes
-
-✅ Generate MCQs
-
-✅ Create Interview Questions
-
-✅ View Source Citations
-
-Login from the sidebar to get started.
-""")
+    st.stop()
 
 user_record = db.get_user_by_id(st.session_state.user_id)
 if user_record:
@@ -309,19 +281,13 @@ with st.sidebar:
     logo_path = Path("assets/logo.svg")
     if logo_path.exists():
         st.image(str(logo_path), use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("## 👤 Account")
 
-    st.markdown("## 👤 Profile")
-    st.markdown(f"**{st.session_state.username}**")
+    st.markdown(f"### {st.session_state.username}")
     st.caption(st.session_state.email)
 
-    st.markdown("### Quick Stats")
-    user_pdf_count = len(db.get_pdfs_for_user(st.session_state.user_id))
-    user_chat_count = len(db.get_chats_for_user(st.session_state.user_id))
-    stat_cols = st.columns(2)
-    with stat_cols[0]:
-        st.metric("PDFs", user_pdf_count)
-    with stat_cols[1]:
-        st.metric("Chats", user_chat_count)
+    st.divider()
 
     if st.button("➕ New Chat", use_container_width=True):
         st.session_state.history = []
@@ -329,6 +295,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("## 💬 Chat History")
+    st.caption("Open previous conversations")
     user_chats = db.get_chats_for_user(st.session_state.user_id)
     chat_options = [(None, "(new chat)")] + [(chat_id, title) for chat_id, title, _ in user_chats]
 
@@ -354,7 +321,8 @@ with st.sidebar:
         load_chat_into_state(selected_chat[0])
         st.rerun()
 
-    st.markdown("## 📚 PDF Library")
+    st.markdown("## 📚 My PDFs")
+    st.caption("Upload once, use forever")
     library_upload_key = f"library_upload_{st.session_state.sidebar_upload_counter}"
 
     with st.form("library_upload_form", clear_on_submit=True):
@@ -367,49 +335,69 @@ with st.sidebar:
         upload_submit = st.form_submit_button("Save to Library")
 
     if upload_submit and uploaded_files:
-        new_pdf_ids = save_uploaded_pdfs(uploaded_files, st.session_state.user_id)
+        new_pdf_ids = save_uploaded_pdfs(
+    uploaded_files,
+    st.session_state.user_id,
+    db
+)
         st.session_state.active_pdf_ids = list(dict.fromkeys([*st.session_state.active_pdf_ids, *new_pdf_ids]))
         st.session_state.sidebar_upload_counter += 1
         st.success(f"Saved {len(new_pdf_ids)} PDF(s) to your library.")
         st.rerun()
 
     pdf_rows = db.get_pdfs_for_user(st.session_state.user_id)
-    if pdf_rows:
-        pdf_options = pdf_rows
-        default_selection = [row for row in pdf_options if row[0] in st.session_state.active_pdf_ids]
-        if not default_selection:
-            default_selection = pdf_options
-            st.session_state.active_pdf_ids = [row[0] for row in pdf_options]
 
-        selected_pdf_rows = st.multiselect(
-            "My PDFs",
-            options=pdf_options,
-            default=default_selection,
-            format_func=lambda row: row[1],
-            key="library_multiselect",
-        )
-        st.session_state.active_pdf_ids = [row[0] for row in selected_pdf_rows]
+if pdf_rows:
 
-        st.caption("Selected PDFs are used for retrieval in the active chat.")
+    pdf_options = pdf_rows
 
-        delete_pdf_rows = st.multiselect(
-            "Delete PDFs",
-            options=pdf_options,
-            format_func=lambda row: row[1],
-            key="delete_multiselect",
-        )
-        if st.button("Delete selected PDFs", use_container_width=True):
-            for pdf_row in delete_pdf_rows:
-                db.delete_pdf(pdf_row[0], st.session_state.user_id)
-            st.session_state.active_pdf_ids = [pdf_id for pdf_id in st.session_state.active_pdf_ids if pdf_id not in {row[0] for row in delete_pdf_rows}]
-            st.success("Selected PDF(s) deleted.")
-            st.rerun()
-    else:
-        st.info("Upload PDFs here once. They will stay in your library until you delete them.")
+    default_selection = [
+        row for row in pdf_options
+        if row[0] in st.session_state.active_pdf_ids
+    ]
 
-    st.markdown("## 🧠 Conversation Memory")
-    st.session_state.memory_turns = st.slider("Memory window (turns)", 2, 10, st.session_state.memory_turns)
+    if not default_selection:
+        default_selection = pdf_options
+        st.session_state.active_pdf_ids = [
+            row[0] for row in pdf_options
+        ]
 
+    selected_pdf_rows = st.multiselect(
+        "My PDFs",
+        options=pdf_options,
+        default=default_selection,
+        format_func=lambda row: row[1],
+        key="library_multiselect",
+    )
+
+    st.session_state.active_pdf_ids = [
+        row[0] for row in selected_pdf_rows
+    ]
+
+    st.caption(
+        "Selected PDFs are used for retrieval in the active chat."
+    )
+
+    if st.button(
+        "Delete selected PDFs",
+        use_container_width=True
+    ):
+
+        for pdf_row in selected_pdf_rows:
+
+            db.delete_pdf(
+                pdf_row[0],
+                st.session_state.user_id
+            )
+
+        st.success("Selected PDF(s) deleted.")
+        st.rerun()
+
+else:
+
+    st.info(
+        "Upload PDFs here once. They will stay in your library until you delete them."
+    )
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.authenticated = False
@@ -423,12 +411,17 @@ with st.sidebar:
 
 
 st.markdown("""
-# 📚 AI Study Assistant
+<div style='text-align:center; padding-top:40px;'>
 
-Upload PDFs, generate notes, summaries,
+<h1>📚 AI Study Assistant</h1>
+
+<p style='font-size:22px; color:#B8C1EC;'>
+Chat with PDFs, generate notes,
 MCQs and interview questions instantly.
-""")
+</p>
 
+</div>
+""", unsafe_allow_html=True)
 if st.session_state.history:
     render_turns(st.session_state.history)
 
@@ -441,11 +434,22 @@ selected_pdf_rows = db.get_pdfs_by_ids(st.session_state.user_id, selected_pdf_id
 
 
 if not selected_pdf_rows:
-    st.info("Upload PDFs from the sidebar and select the ones you want to chat with.")
+    st.markdown("""
+<div style='text-align:center; margin-top:80px;'>
+
+<h1>📂 No PDFs Selected</h1>
+
+<p style='font-size:20px; color:#B8C1EC;'>
+Upload PDFs from the sidebar to start chatting with your documents.
+</p>
+
+</div>
+""", unsafe_allow_html=True)
+
+    st.stop()
     st.stop()
 
-
-with st.spinner("📚 Loading PDFs..."):
+with st.spinner("📖 Reading PDFs..."):
     documents = load_documents_from_pdfs(
         selected_pdf_rows
     )
@@ -469,31 +473,39 @@ if (
 
 vectorstore = st.session_state.vectorstore
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     summary_btn = st.button(
-        "📝 Generate Summary",
+        "📝 Summary",
         use_container_width=True
     )
 
 with col2:
     notes_btn = st.button(
-        "📚 Study Notes",
+        "📚 Notes",
         use_container_width=True
     )
 
 with col3:
     mcq_btn = st.button(
-        "❓ Generate MCQs",
+        "❓ MCQs",
         use_container_width=True
     )
 
 with col4:
     interview_btn = st.button(
-        "🎯 Interview Prep",
+        "🎯 Interview",
         use_container_width=True
     )
+
+with col5:
+    resume_btn = st.button(
+        "📄 Resume",
+        use_container_width=True
+    )
+
+st.divider()
 question = None
 
 if summary_btn:
@@ -528,8 +540,19 @@ elif interview_btn:
     from the uploaded PDFs.
     """
 
+elif resume_btn:
+    question = """
+    Analyze the resume and provide:
+
+    1. Resume Score out of 10
+    2. Strengths
+    3. Weaknesses
+    4. Missing Skills
+    5. ATS Improvement Tips
+    """
+
 user_input = st.chat_input(
-    "Ask a question from the selected PDFs"
+    "💬 Ask anything about your PDFs..."
 )
 
 if user_input:

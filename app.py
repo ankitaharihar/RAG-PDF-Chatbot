@@ -347,9 +347,9 @@ with st.sidebar:
 
     pdf_rows = db.get_pdfs_for_user(st.session_state.user_id)
 
-if pdf_rows:
+    if pdf_rows:
 
-    pdf_options = pdf_rows
+     pdf_options = pdf_rows
 
     default_selection = [
         row for row in pdf_options
@@ -393,9 +393,9 @@ if pdf_rows:
         st.success("Selected PDF(s) deleted.")
         st.rerun()
 
-else:
+    else:
 
-    st.info(
+      st.info(
         "Upload PDFs here once. They will stay in your library until you delete them."
     )
     st.divider()

@@ -229,6 +229,7 @@ def render_auth_sidebar():
                 user_id = db.create_user(username.strip(), email_value, password_hash)
 
                 st.session_state.authenticated = True
+                st.session_state.logged_in = True
                 st.session_state.user_id = user_id
                 st.session_state.username = username.strip()
                 st.session_state.email = email_value
@@ -269,6 +270,28 @@ initialize_state()
 
 if not st.session_state.authenticated:
     render_auth_sidebar()
+
+    st.markdown("""
+    <div style='text-align:center; padding-top:120px;'>
+
+        <h1 style='font-size:52px;'>
+            📚 AI Study Assistant
+        </h1>
+
+        <p style='font-size:22px; color:#B8C1EC;'>
+            Chat with PDFs, generate notes, MCQs,
+            summaries and interview questions instantly.
+        </p>
+
+        <br>
+
+        <h3 style='color:#94A3B8;'>
+            👈 Login or Sign Up from the sidebar to continue.
+        </h3>
+
+    </div>
+    """, unsafe_allow_html=True)
+
     st.stop()
 
 user_record = db.get_user_by_id(st.session_state.user_id)

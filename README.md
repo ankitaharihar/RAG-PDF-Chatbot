@@ -2,6 +2,26 @@
 
 AI Document Intelligence Platform for chatting with multiple PDFs using OpenRouter, ChromaDB, and a persistent SQLite-backed PDF library.
 
+## Project Status
+
+### Completed
+
+- User sign up and login with bcrypt password hashing
+- Personal PDF library with multi-file upload support
+- PDF selection for each chat session
+- Vector search over uploaded documents with ChromaDB
+- OpenRouter-powered answers with source citations
+- Per-user chat history stored in SQLite
+- Conversation memory for follow-up questions
+- Custom Streamlit UI styling for a chat-like experience
+
+### Pending
+
+- Replace the placeholder live demo URL with the deployed app link
+- Add screenshots for login, dashboard, and chat states
+- Add production-grade persistent storage for uploads, SQLite, and ChromaDB data on Render
+- Add automated tests beyond the current Python compile check
+
 ## Live Demo
 
 Live URL: https://your-app-url
@@ -108,6 +128,7 @@ python -m py_compile app.py db.py
 - Uploaded PDFs are stored in `pdf_library/` per user.
 - Existing chats can be reopened from the sidebar.
 - Chat answers include cited PDF sources and page numbers.
+- Render free-tier storage is temporary, so uploaded PDFs and indexes can be lost after restart.
 
 ## License
 

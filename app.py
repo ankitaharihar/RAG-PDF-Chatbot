@@ -14,6 +14,8 @@ from openai import OpenAI
 import database.db as db
 from components.pdf_library import render_pdf_library
 from auth.auth import initialize_auth, render_auth_sidebar, logout_user
+from components.forgot_password import render_forgot_password
+from components.reset_password import render_reset_password
 
 from utils.pdf_utils import (
     save_uploaded_pdfs,

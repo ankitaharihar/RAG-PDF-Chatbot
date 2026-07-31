@@ -114,9 +114,13 @@ def initialize_auth():
     reset_token = st.query_params.get("token")
 
     if mode == "reset" and reset_email and reset_token:
-     st.session_state.auth_page = "reset"
-     st.session_state.pending_reset_email = reset_email
-     st.session_state.pending_reset_token = reset_token
+        st.session_state.auth_page = "reset"
+        st.session_state.pending_reset_email = reset_email
+        st.session_state.pending_reset_token = reset_token
+        st.session_state.auth_mode = "Reset Password"
+        st.session_state.auth_mode_selector = "Reset Password"
+        return
+
 
 def clear_session_state():
     for key in list(st.session_state.keys()):
@@ -573,8 +577,8 @@ def render_auth_sidebar():
 
         auth_mode = st.session_state.auth_mode_selector
         if auth_mode == "Forgot Password":
-         st.session_state.auth_page = "forgot"
-         st.rerun()
+            st.session_state.auth_page = "forgot"
+            st.rerun()
         # -----------------------------------------
         # Render selected screen
         # -----------------------------------------

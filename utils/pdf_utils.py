@@ -5,7 +5,7 @@ from langchain_community.document_loaders import PyPDFLoader
 
 
 def save_uploaded_pdfs(uploaded_files, user_id, db):
-    library_dir = Path("pdf_library") / f"user_{user_id}"
+    library_dir = Path("assets") / "pdf_library" / f"user_{user_id}"
     library_dir.mkdir(parents=True, exist_ok=True)
 
     new_pdf_ids = []

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 import database.db as db
-
+from components.pdf_library import render_pdf_library
 from auth.auth import initialize_auth, render_auth_sidebar, logout_user
 
 from utils.pdf_utils import (
@@ -319,83 +319,7 @@ with st.sidebar:
         load_chat_into_state(selected_chat[0])
         st.rerun()
 
-    st.markdown("## 📚 My PDFs")
-    st.caption("Upload once, use forever")
-    library_upload_key = f"library_upload_{st.session_state.sidebar_upload_counter}"
-
-    with st.form("library_upload_form", clear_on_submit=True):
-        uploaded_files = st.file_uploader(
-            "Upload PDFs once and reuse them forever",
-            type="pdf",
-            accept_multiple_files=True,
-            key=library_upload_key,
-        )
-        upload_submit = st.form_submit_button("Save to Library")
-
-    if upload_submit and uploaded_files:
-        new_pdf_ids = save_uploaded_pdfs(
-            uploaded_files,
-            st.session_state.user_id,
-            db
-        )
-        st.session_state.active_pdf_ids = list(dict.fromkeys(
-            [*st.session_state.active_pdf_ids, *new_pdf_ids]))
-        st.session_state.sidebar_upload_counter += 1
-        st.success(f"Saved {len(new_pdf_ids)} PDF(s) to your library.")
-        st.rerun()
-
-    pdf_rows = db.get_pdfs_for_user(st.session_state.user_id)
-
-    if pdf_rows:
-        pdf_options = pdf_rows
-
-        default_selection = [
-            row for row in pdf_options
-            if row[0] in st.session_state.active_pdf_ids
-        ]
-
-        if not default_selection:
-            default_selection = pdf_options
-            st.session_state.active_pdf_ids = [
-                row[0] for row in pdf_options
-            ]
-
-        selected_pdf_rows = st.multiselect(
-            "My PDFs",
-            options=pdf_options,
-            default=default_selection,
-            format_func=lambda row: row[1],
-            key="library_multiselect",
-        )
-
-        st.session_state.active_pdf_ids = [
-            row[0] for row in selected_pdf_rows
-        ]
-
-        st.caption(
-            "Selected PDFs are used for retrieval in the active chat."
-        )
-
-        if st.button(
-            "Delete selected PDFs",
-            use_container_width=True
-        ):
-
-            for pdf_row in selected_pdf_rows:
-
-                db.delete_pdf(
-                    pdf_row[0],
-                    st.session_state.user_id
-                )
-
-            st.success("Selected PDF(s) deleted.")
-            st.rerun()
-
-    else:
-
-        st.info(
-            "Upload PDFs here once. They will stay in your library until you delete them."
-        )
+    selected_pdf_rows = render_pdf_library(db)
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
         logout_user()

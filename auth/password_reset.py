@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import bcrypt
 
 import database.db as db
-
+from services.email_service import send_password_reset_email
 
 def hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -18,7 +18,26 @@ def create_reset_token(user_id: int):
                   ).isoformat(timespec="seconds")
     db.create_password_reset_token(user_id, token_hash, expires_at)
     return token, expires_at
+def request_password_reset(email: str):
+    email = email.strip().lower()
 
+    user = db.get_user_by_email(email)
+
+    # Don't reveal whether an account exists.
+    if not user:
+        return True, "If an account exists for this email, a reset link has been sent."
+
+    token, _expires_at = create_reset_token(user[0])
+
+    email_sent, _message = send_password_reset_email(
+        to_email=email,
+        token=token,
+    )
+
+    if not email_sent:
+        return False, "Unable to send reset email. Please try again."
+
+    return True, "If an account exists for this email, a reset link has been sent."
 
 def reset_user_password(email: str, token: str, new_password: str):
     user = db.get_user_by_email(email)

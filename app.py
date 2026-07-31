@@ -195,6 +195,18 @@ def load_chat_into_state(chat_id: int):
 initialize_auth()
 
 if not st.session_state.authenticated:
+
+    # Forgot Password - separate page
+    if st.session_state.get("auth_page") == "forgot":
+        render_forgot_password()
+        st.stop()
+
+    # Reset Password - separate page
+    if st.session_state.get("auth_page") == "reset":
+        render_reset_password()
+        st.stop()
+
+    # Normal Login / Sign Up
     render_auth_sidebar()
 
     hero_col1, hero_col2 = st.columns([1.4, 1])

@@ -7,7 +7,8 @@ import streamlit as st
 
 import database.db as db
 from auth.password_reset import request_password_reset, reset_user_password
-
+from components.forgot_password import render_forgot_password
+from components.reset_password import render_reset_password
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,25}$")
@@ -113,12 +114,9 @@ def initialize_auth():
     reset_token = st.query_params.get("token")
 
     if mode == "reset" and reset_email and reset_token:
-      st.session_state.auth_mode = "Reset Password"
-      st.session_state.pending_reset_email = reset_email
-      st.session_state.pending_reset_token = reset_token
-
-    # Keep the radio widget in sync with the reset URL
-      st.session_state.auth_mode_selector = "Reset Password"
+     st.session_state.auth_page = "reset"
+     st.session_state.pending_reset_email = reset_email
+     st.session_state.pending_reset_token = reset_token
 
 def clear_session_state():
     for key in list(st.session_state.keys()):
@@ -574,7 +572,9 @@ def render_auth_sidebar():
         )
 
         auth_mode = st.session_state.auth_mode_selector
-
+        if auth_mode == "Forgot Password":
+         st.session_state.auth_page = "forgot"
+         st.rerun()
         # -----------------------------------------
         # Render selected screen
         # -----------------------------------------

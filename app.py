@@ -1,5 +1,9 @@
 import os
+import re
+import secrets
+import hashlib
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import bcrypt
@@ -24,9 +28,10 @@ from utils.ui_utils import (
     render_turns
 )
 
+
 def apply_ui_theme():
-        st.markdown(
-                """
+    st.markdown(
+        """
                 <style>
                     .stApp {
                         background:
@@ -132,10 +137,120 @@ def apply_ui_theme():
                     }
                 </style>
                 """,
-                unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-st.set_page_config(page_title="Multi-PDF RAG Chatbot", page_icon="📄", layout="wide")
+
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,25}$")
+
+
+def is_valid_email(email: str) -> bool:
+    return bool(EMAIL_PATTERN.match(email.strip()))
+
+
+def is_valid_username(username: str) -> bool:
+    return bool(USERNAME_PATTERN.match(username.strip()))
+
+
+def validate_password(password: str):
+    errors = []
+
+    if len(password) < 8:
+        errors.append("Minimum 8 characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("At least 1 uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("At least 1 lowercase letter")
+    if not re.search(r"\d", password):
+        errors.append("At least 1 number")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        errors.append("At least 1 special character")
+
+    return errors
+
+
+def password_strength_level(password: str):
+    score = 0
+    checks = [
+        len(password) >= 8,
+        bool(re.search(r"[A-Z]", password)),
+        bool(re.search(r"[a-z]", password)),
+        bool(re.search(r"\d", password)),
+        bool(re.search(r"[^A-Za-z0-9]", password)),
+    ]
+    score = sum(1 for check in checks if check)
+
+    if score <= 2:
+        return "Weak", 0.33, "#ef4444"
+    if score == 3 or score == 4:
+        return "Medium", 0.66, "#f59e0b"
+    return "Strong", 1.0, "#22c55e"
+
+
+def clear_session_state():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+
+
+def set_authenticated_user(user_row):
+    st.session_state.authenticated = True
+    st.session_state.user_id = user_row[0]
+    st.session_state.username = user_row[1]
+    st.session_state.email = user_row[2]
+    st.session_state.login_time = datetime.now().isoformat(timespec="seconds")
+    st.session_state.history = []
+    st.session_state.current_chat_id = None
+    st.session_state.active_pdf_ids = []
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_reset_token(user_id: int):
+    token = secrets.token_urlsafe(16)
+    token_hash = hash_reset_token(token)
+    expires_at = (datetime.now() + timedelta(minutes=20)
+                  ).isoformat(timespec="seconds")
+    db.create_password_reset_token(user_id, token_hash, expires_at)
+    return token, expires_at
+
+
+def reset_user_password(email: str, token: str, new_password: str):
+    user = db.get_user_by_email(email)
+    if not user:
+        return False, "Email not found."
+
+    token_hash = hash_reset_token(token.strip())
+    reset_row = db.get_active_password_reset(token_hash)
+    if not reset_row:
+        return False, "Invalid reset token."
+
+    reset_id, reset_user_id, expires_at, used_at = reset_row
+    if used_at:
+        return False, "This reset token has already been used."
+
+    try:
+        expires_at_value = datetime.fromisoformat(expires_at)
+    except ValueError:
+        return False, "Stored reset token is invalid. Please generate a new one."
+
+    if datetime.now() > expires_at_value:
+        return False, "Reset token expired. Generate a new one."
+
+    if reset_user_id != user[0]:
+        return False, "Reset token does not match this email."
+
+    password_hash = bcrypt.hashpw(new_password.encode(
+        "utf-8"), bcrypt.gensalt()).decode("utf-8")
+    db.update_user_password(user[0], password_hash)
+    db.mark_password_reset_used(reset_id)
+    return True, "Password updated successfully."
+
+
+st.set_page_config(page_title="Multi-PDF RAG Chatbot",
+                   page_icon="📄", layout="wide")
 apply_ui_theme()
 
 
@@ -153,7 +268,6 @@ client = OpenAI(
 )
 
 
-
 db.init_db()
 
 
@@ -164,11 +278,16 @@ def initialize_state():
         "username": "",
         "email": "",
         "session_id": str(uuid.uuid4()),
+        "login_time": "",
         "history": [],
         "current_chat_id": None,
         "active_pdf_ids": [],
         "memory_turns": 6,
         "sidebar_upload_counter": 0,
+        "auth_mode": "Login",
+        "pending_reset_email": "",
+        "pending_reset_token": "",
+        "auth_notice": "",
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -190,74 +309,203 @@ def load_chat_history(chat_id: int):
                 citation, excerpt = content.split("||", 1)
             else:
                 citation, excerpt = content, ""
-            current_turn["sources"].append({"citation": citation, "excerpt": excerpt})
+            current_turn["sources"].append(
+                {"citation": citation, "excerpt": excerpt})
 
     return turns
+
 
 def render_auth_sidebar():
     with st.sidebar:
         st.markdown("## 🔐 Account")
-        st.caption("Login or create an account to keep your chats and PDF library private.")
+        st.caption("Login, create an account, or reset your password.")
 
-        auth_mode = st.radio("Mode", ["Login", "Sign Up"], horizontal=True)
+        if st.session_state.get("auth_notice"):
+            st.info(st.session_state.auth_notice)
+            st.session_state.auth_notice = ""
 
-        with st.form("auth_form"):
-            username = ""
-            if auth_mode == "Sign Up":
-                username = st.text_input("Username")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button(auth_mode)
+        auth_mode = st.radio(
+            "Mode",
+            ["Login", "Sign Up", "Forgot Password", "Reset Password"],
+            horizontal=False,
+            index=["Login", "Sign Up", "Forgot Password",
+                   "Reset Password"].index(st.session_state.auth_mode)
+            if st.session_state.auth_mode in ["Login", "Sign Up", "Forgot Password", "Reset Password"]
+            else 0,
+            key="auth_mode_radio",
+        )
+        st.session_state.auth_mode = auth_mode
 
-        if submitted:
-            email_value = email.strip().lower()
+        if auth_mode == "Login":
+            with st.form("login_form"):
+                email = st.text_input("Email", placeholder="you@example.com")
+                show_password = st.checkbox(
+                    "Show Password", key="login_show_password")
+                password = st.text_input(
+                    "Password", type="default" if show_password else "password")
+                submitted = st.form_submit_button("Login")
 
-            if not email_value or not password:
-                st.error("Email and password are required.")
-                return
+            if submitted:
+                email_value = email.strip().lower()
 
-            if auth_mode == "Sign Up":
-                if not username.strip():
-                    st.error("Username is required for sign up.")
+                if not email_value or not password:
+                    st.error("❌ Email and password are required.")
+                    return
+
+                if not is_valid_email(email_value):
+                    st.error("❌ Enter a valid email address.")
+                    return
+
+                user = db.get_user_by_email(email_value)
+                if not user:
+                    st.error("❌ Email not found. Please sign up first.")
+                    return
+
+                stored_hash = user[3]
+                if not bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8")):
+                    st.error("❌ Incorrect password. Please try again.")
+                    return
+
+                set_authenticated_user(user)
+                st.success(f"✅ Welcome back, {user[1]}!")
+                st.rerun()
+
+        elif auth_mode == "Sign Up":
+            with st.form("signup_form"):
+                username = st.text_input("Username", placeholder="ankita_123")
+                email = st.text_input("Email", placeholder="you@example.com")
+                show_password = st.checkbox(
+                    "Show Password", key="signup_show_password")
+                password = st.text_input(
+                    "Password", type="default" if show_password else "password")
+
+                if password:
+                    strength_label, strength_ratio, strength_color = password_strength_level(
+                        password)
+                    st.markdown(f"**Password Strength: {strength_label}**")
+                    st.progress(strength_ratio)
+                    st.caption(
+                        "Use at least 8 characters, with uppercase, lowercase, number, and special character.")
+
+                submitted = st.form_submit_button("Sign Up")
+
+            if submitted:
+                username_value = username.strip()
+                email_value = email.strip().lower()
+
+                if not username_value or not email_value or not password:
+                    st.error("❌ Username, email, and password are required.")
+                    return
+
+                if not is_valid_username(username_value):
+                    st.error(
+                        "❌ Username must be 3-25 characters and use only letters, numbers, or _.")
+                    return
+
+                if not is_valid_email(email_value):
+                    st.error("❌ Enter a valid email address.")
+                    return
+
+                password_errors = validate_password(password)
+                if password_errors:
+                    st.error("❌ " + "; ".join(password_errors))
                     return
 
                 if db.get_user_by_email(email_value):
-                    st.error("An account with this email already exists.")
+                    st.error("❌ An account with this email already exists.")
                     return
 
-                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-                user_id = db.create_user(username.strip(), email_value, password_hash)
+                password_hash = bcrypt.hashpw(password.encode(
+                    "utf-8"), bcrypt.gensalt()).decode("utf-8")
+                user_id = db.create_user(
+                    username_value, email_value, password_hash)
 
-                st.session_state.authenticated = True
-                st.session_state.logged_in = True
-                st.session_state.user_id = user_id
-                st.session_state.username = username.strip()
-                st.session_state.email = email_value
-                st.session_state.history = []
-                st.session_state.current_chat_id = None
-                st.session_state.active_pdf_ids = []
-                st.success("Account created successfully.")
+                user = (user_id, username_value, email_value, password_hash)
+                set_authenticated_user(user)
+                st.success(
+                    "🎉 Account created successfully! Welcome to AI Study Assistant.")
                 st.rerun()
 
-            user = db.get_user_by_email(email_value)
-            if not user:
-                st.error("No account found for this email.")
-                return
+        elif auth_mode == "Forgot Password":
+            with st.form("forgot_password_form"):
+                email = st.text_input("Email", placeholder="you@example.com")
+                submitted = st.form_submit_button("Generate Reset Token")
 
-            stored_hash = user[3]
-            if not bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8")):
-                st.error("Incorrect password.")
-                return
+            if submitted:
+                email_value = email.strip().lower()
 
-            st.session_state.authenticated = True
-            st.session_state.user_id = user[0]
-            st.session_state.username = user[1]
-            st.session_state.email = user[2]
-            st.session_state.history = []
-            st.session_state.current_chat_id = None
-            st.session_state.active_pdf_ids = []
-            st.success("Logged in successfully.")
-            st.rerun()
+                if not email_value:
+                    st.error("❌ Email is required.")
+                    return
+
+                if not is_valid_email(email_value):
+                    st.error("❌ Enter a valid email address.")
+                    return
+
+                user = db.get_user_by_email(email_value)
+                if not user:
+                    st.error("❌ Email not found.")
+                    return
+
+                token, _expires_at = create_reset_token(user[0])
+                st.session_state.pending_reset_email = email_value
+                st.session_state.pending_reset_token = token
+                st.session_state.auth_mode = "Reset Password"
+                st.session_state.auth_mode_radio = "Reset Password"
+                st.session_state.auth_notice = "✅ Reset token generated. The reset form is ready."
+                st.rerun()
+
+        else:
+            with st.form("reset_password_form"):
+                email_default = st.session_state.get("pending_reset_email", "")
+                token_default = st.session_state.get("pending_reset_token", "")
+                email = st.text_input(
+                    "Email", value=email_default, placeholder="you@example.com")
+                token = st.text_input(
+                    "Reset Token", value=token_default, placeholder="Paste reset token here")
+                show_password = st.checkbox(
+                    "Show Password", key="reset_show_password")
+                new_password = st.text_input(
+                    "New Password", type="default" if show_password else "password")
+                confirm_password = st.text_input(
+                    "Confirm New Password", type="default" if show_password else "password")
+
+                if new_password:
+                    strength_label, strength_ratio, _ = password_strength_level(
+                        new_password)
+                    st.markdown(f"**Password Strength: {strength_label}**")
+                    st.progress(strength_ratio)
+
+                submitted = st.form_submit_button("Update Password")
+
+            if submitted:
+                email_value = email.strip().lower()
+
+                if not email_value or not token or not new_password or not confirm_password:
+                    st.error("❌ All reset fields are required.")
+                    return
+
+                if new_password != confirm_password:
+                    st.error("❌ Passwords do not match.")
+                    return
+
+                password_errors = validate_password(new_password)
+                if password_errors:
+                    st.error("❌ " + "; ".join(password_errors))
+                    return
+
+                success, message = reset_user_password(
+                    email_value, token, new_password)
+                if not success:
+                    st.error(f"❌ {message}")
+                    return
+
+                st.session_state.auth_notice = f"✅ {message} Please log in with your new password."
+                st.session_state.auth_mode = "Login"
+                st.session_state.auth_mode_radio = "Login"
+                st.session_state.pending_reset_email = ""
+                st.session_state.pending_reset_token = ""
+                st.rerun()
 
 
 def load_chat_into_state(chat_id: int):
@@ -271,26 +519,66 @@ initialize_state()
 if not st.session_state.authenticated:
     render_auth_sidebar()
 
-    st.markdown("""
-    <div style='text-align:center; padding-top:120px;'>
+    hero_col1, hero_col2 = st.columns([1.4, 1])
 
-        <h1 style='font-size:52px;'>
-            📚 AI Study Assistant
-        </h1>
+    with hero_col1:
+        st.markdown(
+            """
+            <div class='hero-card' style='padding: 2rem 2.2rem;'>
+                <p class='hero-subtitle' style='font-size:0.9rem; letter-spacing:0.14em; text-transform:uppercase;'>AI Study Assistant</p>
+                <h1 class='hero-title' style='font-size:3rem; margin-top:0.25rem;'>Chat with PDFs using AI</h1>
+                <p class='hero-subtitle' style='font-size:1.1rem; max-width: 720px;'>Generate notes, summaries, MCQs, and interview questions from your documents while keeping every chat tied to your account.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        <p style='font-size:22px; color:#B8C1EC;'>
-            Chat with PDFs, generate notes, MCQs,
-            summaries and interview questions instantly.
-        </p>
+        feature_cols = st.columns(4)
+        feature_labels = ["Generate Notes",
+                          "Summaries", "MCQs", "Interview Questions"]
+        for col, label in zip(feature_cols, feature_labels):
+            with col:
+                st.markdown(
+                    f"""
+                    <div class='metric-card'>
+                        <div class='metric-label'>Feature</div>
+                        <div class='metric-value' style='font-size:1rem;'>{label}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-        <br>
+    with hero_col2:
+        st.markdown(
+            """
+            <div class='hero-card'>
+                <div class='metric-label'>Get started</div>
+                <p style='margin:0.25rem 0 1rem 0; color:#E5EEF9;'>Use the actions below to jump straight into the auth flow.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Login", use_container_width=True):
+                st.session_state.auth_mode = "Login"
+                st.session_state.auth_mode_radio = "Login"
+                st.rerun()
+        with c2:
+            if st.button("Sign Up", use_container_width=True):
+                st.session_state.auth_mode = "Sign Up"
+                st.session_state.auth_mode_radio = "Sign Up"
+                st.rerun()
 
-        <h3 style='color:#94A3B8;'>
-            👈 Login or Sign Up from the sidebar to continue.
-        </h3>
-
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class='hero-card' style='margin-top:1rem;'>
+                <div class='metric-label'>Why sign in?</div>
+                <p style='margin:0.5rem 0 0 0; color:#CBD5E1;'>Private PDF library, saved chats, and resettable account access.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.stop()
 
@@ -307,8 +595,18 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("## 👤 Account")
 
-    st.markdown(f"### {st.session_state.username}")
-    st.caption(st.session_state.email)
+    st.markdown(
+        f"""
+        <div class='hero-card' style='padding: 1rem 1.05rem; margin-bottom: 0.9rem;'>
+            <div class='metric-label'>Signed in as</div>
+            <div style='font-size:1.2rem; font-weight:700; color:#F8FAFC;'>{st.session_state.username}</div>
+            <div style='color:#94A3B8; margin-top:0.2rem;'>{st.session_state.email}</div>
+            <div style='border-top:1px solid rgba(148,163,184,0.16); margin:0.85rem 0 0.6rem 0;'></div>
+            <div style='color:#CBD5E1; font-size:0.9rem;'>Login time: {st.session_state.login_time or 'N/A'}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.divider()
 
@@ -320,7 +618,8 @@ with st.sidebar:
     st.markdown("## 💬 Chat History")
     st.caption("Open previous conversations")
     user_chats = db.get_chats_for_user(st.session_state.user_id)
-    chat_options = [(None, "(new chat)")] + [(chat_id, title) for chat_id, title, _ in user_chats]
+    chat_options = [(None, "(new chat)")] + [(chat_id, title)
+                                             for chat_id, title, _ in user_chats]
 
     default_index = 0
     if st.session_state.current_chat_id is not None:
@@ -359,11 +658,12 @@ with st.sidebar:
 
     if upload_submit and uploaded_files:
         new_pdf_ids = save_uploaded_pdfs(
-    uploaded_files,
-    st.session_state.user_id,
-    db
-)
-        st.session_state.active_pdf_ids = list(dict.fromkeys([*st.session_state.active_pdf_ids, *new_pdf_ids]))
+            uploaded_files,
+            st.session_state.user_id,
+            db
+        )
+        st.session_state.active_pdf_ids = list(dict.fromkeys(
+            [*st.session_state.active_pdf_ids, *new_pdf_ids]))
         st.session_state.sidebar_upload_counter += 1
         st.success(f"Saved {len(new_pdf_ids)} PDF(s) to your library.")
         st.rerun()
@@ -371,65 +671,58 @@ with st.sidebar:
     pdf_rows = db.get_pdfs_for_user(st.session_state.user_id)
 
     if pdf_rows:
+        pdf_options = pdf_rows
 
-     pdf_options = pdf_rows
-
-    default_selection = [
-        row for row in pdf_options
-        if row[0] in st.session_state.active_pdf_ids
-    ]
-
-    if not default_selection:
-        default_selection = pdf_options
-        st.session_state.active_pdf_ids = [
-            row[0] for row in pdf_options
+        default_selection = [
+            row for row in pdf_options
+            if row[0] in st.session_state.active_pdf_ids
         ]
 
-    selected_pdf_rows = st.multiselect(
-        "My PDFs",
-        options=pdf_options,
-        default=default_selection,
-        format_func=lambda row: row[1],
-        key="library_multiselect",
-    )
+        if not default_selection:
+            default_selection = pdf_options
+            st.session_state.active_pdf_ids = [
+                row[0] for row in pdf_options
+            ]
 
-    st.session_state.active_pdf_ids = [
-        row[0] for row in selected_pdf_rows
-    ]
+        selected_pdf_rows = st.multiselect(
+            "My PDFs",
+            options=pdf_options,
+            default=default_selection,
+            format_func=lambda row: row[1],
+            key="library_multiselect",
+        )
 
-    st.caption(
-        "Selected PDFs are used for retrieval in the active chat."
-    )
+        st.session_state.active_pdf_ids = [
+            row[0] for row in selected_pdf_rows
+        ]
 
-    if st.button(
-        "Delete selected PDFs",
-        use_container_width=True
-    ):
+        st.caption(
+            "Selected PDFs are used for retrieval in the active chat."
+        )
 
-        for pdf_row in selected_pdf_rows:
+        if st.button(
+            "Delete selected PDFs",
+            use_container_width=True
+        ):
 
-            db.delete_pdf(
-                pdf_row[0],
-                st.session_state.user_id
-            )
+            for pdf_row in selected_pdf_rows:
 
-        st.success("Selected PDF(s) deleted.")
-        st.rerun()
+                db.delete_pdf(
+                    pdf_row[0],
+                    st.session_state.user_id
+                )
+
+            st.success("Selected PDF(s) deleted.")
+            st.rerun()
 
     else:
 
-      st.info(
-        "Upload PDFs here once. They will stay in your library until you delete them."
-    )
+        st.info(
+            "Upload PDFs here once. They will stay in your library until you delete them."
+        )
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.user_id = None
-        st.session_state.username = ""
-        st.session_state.email = ""
-        st.session_state.history = []
-        st.session_state.current_chat_id = None
-        st.session_state.active_pdf_ids = []
+        clear_session_state()
         st.rerun()
 
 
@@ -450,10 +743,11 @@ if st.session_state.history:
 
 selected_pdf_ids = st.session_state.active_pdf_ids[:]
 if not selected_pdf_ids and db.get_pdfs_for_user(st.session_state.user_id):
-    selected_pdf_ids = [row[0] for row in db.get_pdfs_for_user(st.session_state.user_id)]
+    selected_pdf_ids = [row[0]
+                        for row in db.get_pdfs_for_user(st.session_state.user_id)]
 
-selected_pdf_rows = db.get_pdfs_by_ids(st.session_state.user_id, selected_pdf_ids)
-
+selected_pdf_rows = db.get_pdfs_by_ids(
+    st.session_state.user_id, selected_pdf_ids)
 
 
 if not selected_pdf_rows:
@@ -622,12 +916,12 @@ Question:
 
     answer = response.choices[0].message.content
     if answer:
-     st.download_button(
-        "📥 Download Response",
-        answer,
-        file_name="pdf_response.txt",
-        mime="text/plain"
-    )
+        st.download_button(
+            "📥 Download Response",
+            answer,
+            file_name="pdf_response.txt",
+            mime="text/plain"
+        )
     citation_entries = build_citations(matched_docs)
 
     if st.session_state.current_chat_id is None:

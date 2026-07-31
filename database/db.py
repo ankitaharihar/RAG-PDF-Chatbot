@@ -65,6 +65,20 @@ def init_db():
         '''
     )
 
+    c.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+        '''
+    )
+
     # Backward-compatible schema migration for existing SQLite databases.
     c.execute("PRAGMA table_info(chats)")
     columns = {row[1] for row in c.fetchall()}
@@ -95,6 +109,17 @@ def create_user(username: str, email: str, password_hash: str):
     return user_id
 
 
+def update_user_password(user_id: int, password_hash: str):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE users SET password_hash=? WHERE id=?",
+        (password_hash, user_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_user_by_email(email: str):
     conn = get_conn()
     c = conn.cursor()
@@ -114,6 +139,48 @@ def get_user_by_id(user_id: int):
     row = c.fetchone()
     conn.close()
     return row
+
+
+def create_password_reset_token(user_id: int, token_hash: str, expires_at: str):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+        (user_id, token_hash, expires_at),
+    )
+    conn.commit()
+    reset_id = c.lastrowid
+    conn.close()
+    return reset_id
+
+
+def get_active_password_reset(token_hash: str):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        """
+        SELECT id, user_id, expires_at, used_at
+        FROM password_resets
+        WHERE token_hash=?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (token_hash,),
+    )
+    row = c.fetchone()
+    conn.close()
+    return row
+
+
+def mark_password_reset_used(reset_id: int):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE password_resets SET used_at=CURRENT_TIMESTAMP WHERE id=?",
+        (reset_id,),
+    )
+    conn.commit()
+    conn.close()
 
 
 def add_pdf(user_id: int, original_name: str, stored_name: str, stored_path: str):
@@ -263,7 +330,8 @@ def get_or_create_session_chat(
 def add_message(chat_id: int, role: str, content: str):
     conn = get_conn()
     c = conn.cursor()
-    c.execute('INSERT INTO messages (chat_id, role, content) VALUES (?,?,?)', (chat_id, role, content))
+    c.execute('INSERT INTO messages (chat_id, role, content) VALUES (?,?,?)',
+              (chat_id, role, content))
     conn.commit()
     conn.close()
 
@@ -309,7 +377,8 @@ def update_chat_title(chat_id: int, title: str):
 def get_messages(chat_id: int):
     conn = get_conn()
     c = conn.cursor()
-    c.execute('SELECT role, content, created_at FROM messages WHERE chat_id=? ORDER BY created_at', (chat_id,))
+    c.execute(
+        'SELECT role, content, created_at FROM messages WHERE chat_id=? ORDER BY created_at', (chat_id,))
     rows = c.fetchall()
     conn.close()
     return rows

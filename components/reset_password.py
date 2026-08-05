@@ -1,7 +1,11 @@
 import streamlit as st
 
-from auth.auth import is_valid_email, validate_password, password_strength_level
 from auth.password_reset import reset_user_password
+from auth.validators import (
+    is_valid_email,
+    password_strength_level,
+    validate_password,
+)
 
 
 def render_reset_password():
@@ -50,7 +54,7 @@ def render_reset_password():
         )
 
         if new_password:
-            strength_label, strength_ratio, _ = (
+            strength_label, strength_ratio = (
                 password_strength_level(new_password)
             )
 

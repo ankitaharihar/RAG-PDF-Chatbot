@@ -1,7 +1,7 @@
 import streamlit as st
 
-from auth.auth import is_valid_email
 from auth.password_reset import request_password_reset
+from auth.validators import is_valid_email
 
 
 def render_forgot_password():

@@ -455,14 +455,14 @@ footer {
 ========================================= */
 
 .auth-page {
-  min-height: 100vh;
-  height: 100vh;
   width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: 24px;
+  padding: 20px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -476,21 +476,15 @@ footer {
 }
 
 .auth-card {
-  width: 100%;
-  max-width: 480px;
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 40px);
   box-sizing: border-box;
-  padding: 34px 38px;
+  padding: 32px 38px;
   background: #101827;
-  border: 1px solid #24344f;
+  border: 1px solid #263754;
   border-radius: 24px;
-  text-align: left;
+  overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-}
-
-.auth-card::-webkit-scrollbar {
-  width: 0;
 }
 
 .auth-icon {
@@ -955,7 +949,6 @@ footer {
   }
 
   .auth-card {
-    max-height: calc(100vh - 56px);
     padding: 30px 22px;
   }
 
@@ -1004,5 +997,29 @@ footer {
 
   .chat-input button {
     min-width: 80px;
+  }
+}
+
+@media (max-width: 600px) {
+  html,
+  body {
+    overflow: auto;
+  }
+
+  .auth-page {
+    height: auto;
+    min-height: 100dvh;
+    padding: 24px 16px;
+    overflow: visible;
+  }
+
+  .auth-card {
+    max-height: none;
+    padding: 28px 22px;
+  }
+
+  .auth-brand {
+    position: static;
+    margin-bottom: 20px;
   }
 }

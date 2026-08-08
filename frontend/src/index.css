@@ -11,6 +11,10 @@ body,
   min-height: 100%;
 }
 
+html {
+  overflow: hidden;
+}
+
 body {
   background: #050a14;
   color: #f8fafc;
@@ -21,4 +25,5 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  overflow: hidden;
 }

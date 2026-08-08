@@ -1,23 +1,22 @@
-import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import ChatArea from "./components/ChatArea";
-import ChatInput from "./components/ChatInput";
-import QuickActions from "./components/QuickActions";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+
+import "./App.css";
 
 function App() {
   return (
-    <div className="app">
-      <Sidebar />
-
-      <div className="main">
-        <Header />
-        <ChatArea />
-        <ChatInput />
-        <QuickActions/>
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

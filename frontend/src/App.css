@@ -1001,25 +1001,13 @@ footer {
 }
 
 @media (max-width: 600px) {
-  html,
-  body {
-    overflow: auto;
-  }
-
   .auth-page {
     height: auto;
     min-height: 100dvh;
-    padding: 24px 16px;
     overflow: visible;
   }
 
   .auth-card {
     max-height: none;
-    padding: 28px 22px;
-  }
-
-  .auth-brand {
-    position: static;
-    margin-bottom: 20px;
   }
 }

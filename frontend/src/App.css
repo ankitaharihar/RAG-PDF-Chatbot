@@ -831,46 +831,202 @@ footer {
    CHAT INPUT
 ========================================= */
 
-.chat-input {
-  position: fixed;
-  z-index: 10;
-  left: 255px;
-  right: 0;
-  bottom: 0;
+.chat-input-wrapper {
+  width: 100%;
   padding: 18px 30px;
-  display: flex;
-  gap: 12px;
-  background: rgba(8, 11, 18, 0.96);
+  box-sizing: border-box;
+  background: #080b12;
   border-top: 1px solid #1a273b;
-  backdrop-filter: blur(14px);
 }
 
-.chat-input input {
+.chat-input-box {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 10px;
+  box-sizing: border-box;
+
+  background: #0d1524;
+  border: 1px solid #293a55;
+  border-radius: 14px;
+
+  transition: border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+.chat-input-box:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.08);
+}
+
+
+/* Upload button */
+
+.upload-icon-btn {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 10px;
+
+  background: transparent;
+  color: #8fa4c7;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-icon-btn:hover {
+  background: #162238;
+  color: #38bdf8;
+}
+
+
+/* Prompt */
+
+.chat-input-box textarea {
   flex: 1;
   min-width: 0;
-  height: 52px;
-  padding: 0 16px;
-  border: 1px solid #293a55;
-  border-radius: 11px;
+
+  height: 42px;
+  max-height: 120px;
+
+  padding: 10px 4px;
+
+  border: none;
   outline: none;
-  background: #0d1524;
-  color: white;
+  resize: none;
+
+  background: transparent;
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 22px;
 }
 
-.chat-input input:focus {
-  border-color: #38bdf8;
+.chat-input-box textarea::placeholder {
+  color: #647da3;
 }
 
-.chat-input button {
+
+/* Send button */
+
+.send-btn {
+  height: 42px;
   min-width: 105px;
-  border: 0;
-  border-radius: 11px;
-  color: white;
-  font-weight: 800;
-  cursor: pointer;
+
+  padding: 0 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  border: none;
+  border-radius: 10px;
+
   background: linear-gradient(135deg, #2563eb, #06b6d4);
+  color: #ffffff;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
+/* Selected PDF */
+
+.selected-file {
+  width: 100%;
+  max-width: 900px;
+
+  margin: 0 auto 10px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 12px;
+
+  box-sizing: border-box;
+
+  background: #101b2d;
+  border: 1px solid #293a55;
+  border-radius: 9px;
+
+  color: #9db2d3;
+  font-size: 13px;
+}
+
+.selected-file .file-icon {
+  font-size: 15px;
+}
+
+.selected-file button {
+  margin-left: auto;
+
+  width: 26px;
+  height: 26px;
+
+  border: none;
+  border-radius: 6px;
+
+  background: transparent;
+  color: #8fa4c7;
+
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.selected-file button:hover {
+  background: #1b2a42;
+  color: #ffffff;
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 768px) {
+  .chat-input-wrapper {
+    padding: 12px;
+  }
+
+  .chat-input-box {
+    gap: 6px;
+  }
+
+  .send-btn {
+    min-width: 78px;
+    padding: 0 12px;
+  }
+
+  .upload-icon-btn {
+    width: 38px;
+    flex-basis: 38px;
+  }
+}
 /* =========================================
    RESPONSIVE
 ========================================= */
@@ -886,10 +1042,6 @@ footer {
 
   .sidebar {
     width: 220px;
-  }
-
-  .chat-input {
-    left: 220px;
   }
 }
 
@@ -970,11 +1122,6 @@ footer {
   .dashboard-actions {
     grid-template-columns: 1fr;
   }
-
-  .chat-input {
-    left: 0;
-    padding: 12px;
-  }
 }
 
 @media (max-width: 450px) {
@@ -994,10 +1141,6 @@ footer {
   .auth-card {
     padding: 26px 18px;
   }
-
-  .chat-input button {
-    min-width: 80px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -1016,9 +1159,8 @@ footer {
 ========================= */
 
 .chat-input-wrapper {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
+  width: 100%;
+  box-sizing: border-box;
   padding: 16px 24px 20px;
   background: rgba(6, 10, 20, 0.94);
   backdrop-filter: blur(16px);

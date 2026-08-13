@@ -18,7 +18,8 @@ def test_build_text_splitter_uses_documentation_ready_rag_config():
 
 
 def test_validate_uploaded_file_rejects_invalid_pdf_type():
-    uploaded = SimpleNamespace(name="notes.txt", getbuffer=lambda: b"not-a-pdf")
+    uploaded = SimpleNamespace(
+        name="notes.txt", getbuffer=lambda: b"not-a-pdf")
 
     with pytest.raises(ValueError, match="PDF"):
         validate_uploaded_file(uploaded)
@@ -26,7 +27,8 @@ def test_validate_uploaded_file_rejects_invalid_pdf_type():
 
 def test_validate_uploaded_file_rejects_oversized_files():
     oversized_bytes = b"a" * (21 * 1024 * 1024)
-    uploaded = SimpleNamespace(name="large.pdf", getbuffer=lambda: oversized_bytes)
+    uploaded = SimpleNamespace(
+        name="large.pdf", getbuffer=lambda: oversized_bytes)
 
     with pytest.raises(ValueError, match="20 MB"):
         validate_uploaded_file(uploaded)
@@ -34,9 +36,12 @@ def test_validate_uploaded_file_rejects_oversized_files():
 
 def test_build_citations_returns_unique_sources_with_excerpt():
     docs = [
-        Document(page_content="Alpha content for answer generation.", metadata={"page": 0, "display_source": "Alpha.pdf"}),
-        Document(page_content="Alpha content for answer generation.", metadata={"page": 0, "display_source": "Alpha.pdf"}),
-        Document(page_content="Beta content from second page.", metadata={"page": 1, "display_source": "Beta.pdf"}),
+        Document(page_content="Alpha content for answer generation.",
+                 metadata={"page": 0, "display_source": "Alpha.pdf"}),
+        Document(page_content="Alpha content for answer generation.",
+                 metadata={"page": 0, "display_source": "Alpha.pdf"}),
+        Document(page_content="Beta content from second page.",
+                 metadata={"page": 1, "display_source": "Beta.pdf"}),
     ]
 
     citations = build_citations(docs)

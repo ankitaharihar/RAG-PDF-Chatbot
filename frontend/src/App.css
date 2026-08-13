@@ -726,103 +726,160 @@ footer {
   color: #64748b;
 }
 
+/* =========================================
+   DASHBOARD
+========================================= */
+
 .dashboard-main {
   flex: 1;
   min-width: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+
+/* Header */
+
 .dashboard-header {
-  padding: 42px 55px;
+  flex-shrink: 0;
+
+  padding: 30px 55px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 30px;
+
   border-bottom: 1px solid #172238;
 }
 
+
 .dashboard-label {
+  margin: 0;
+
   color: #38bdf8;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
 }
 
+
 .dashboard-header h1 {
-  margin: 8px 0;
+  margin: 6px 0;
   font-size: 34px;
   letter-spacing: -1px;
 }
+
 
 .dashboard-header p {
   margin: 0;
   color: #7f91aa;
 }
 
+
 .upload-button {
   padding: 13px 20px;
+
   border: 0;
   border-radius: 10px;
+
   cursor: pointer;
+
   color: white;
   font-weight: 800;
+
   background: linear-gradient(135deg, #2563eb, #06b6d4);
+
   white-space: nowrap;
 }
 
+
+/* Main content */
+
 .dashboard-content {
-  width: min(950px, calc(100% - 60px));
+  flex: 1;
+  min-height: 0;
+
+  width: min(1050px, calc(100% - 60px));
+
   margin: 0 auto;
-  padding: 65px 0 140px;
+
+  padding: 35px 0 25px;
+
+  box-sizing: border-box;
+
   text-align: center;
+
+  overflow: hidden;
 }
+
 
 .welcome-icon {
   margin: 0 auto;
 }
 
+
 .dashboard-content h2 {
-  margin: 20px 0 10px;
+  margin: 14px 0 8px;
   font-size: 30px;
 }
+
 
 .dashboard-description {
   margin: 0;
   color: #7185a3;
 }
 
+
 .dashboard-actions {
-  margin-top: 42px;
+  margin-top: 32px;
+
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+
   gap: 15px;
+
   text-align: left;
 }
 
+
 .dashboard-card {
-  min-height: 190px;
+  min-height: 170px;
+
   padding: 24px;
+
   border: 1px solid #26354d;
   border-radius: 16px;
+
   background: #0e1625;
+
   transition: 0.2s;
 }
+
 
 .dashboard-card:hover {
   transform: translateY(-4px);
   border-color: #3b82f6;
 }
 
+
 .dashboard-card span {
   font-size: 26px;
 }
+
 
 .dashboard-card h3 {
   margin: 18px 0 8px;
 }
 
+
 .dashboard-card p {
   margin: 0;
+
   color: #7185a3;
+
   line-height: 1.5;
   font-size: 14px;
 }

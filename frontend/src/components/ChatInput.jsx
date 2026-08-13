@@ -5,7 +5,7 @@ function ChatInput({ onSend, onUpload }) {
   const [fileName, setFileName] = useState("");
   const fileInputRef = useRef(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!message.trim()) return;
@@ -14,7 +14,7 @@ function ChatInput({ onSend, onUpload }) {
     setMessage("");
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
@@ -25,7 +25,48 @@ function ChatInput({ onSend, onUpload }) {
     }
 
     setFileName(file.name);
-    onUpload?.(file);
+
+    try {
+      const formData = new FormData();
+
+      // Backend expects "user_id"
+      formData.append("user_id", "1");
+
+      // Backend expects "files"
+      formData.append("files", file);
+
+      const response = await fetch("http://localhost:8000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          typeof data.detail === "string"
+            ? data.detail
+            : JSON.stringify(data.detail);
+
+        throw new Error(errorMessage || "Upload failed");
+      }
+
+      console.log("Upload response:", data);
+
+      alert("PDF uploaded successfully!");
+
+      onUpload?.(file, data);
+    } catch (error) {
+      console.error("PDF upload error:", error);
+
+      alert(error.message || "PDF upload failed.");
+
+      setFileName("");
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   return (
@@ -33,12 +74,14 @@ function ChatInput({ onSend, onUpload }) {
       {fileName && (
         <div className="selected-file">
           <span className="file-icon">📄</span>
+
           <span>{fileName}</span>
 
           <button
             type="button"
             onClick={() => {
               setFileName("");
+
               if (fileInputRef.current) {
                 fileInputRef.current.value = "";
               }

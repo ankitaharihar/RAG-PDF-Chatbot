@@ -1,3 +1,4 @@
+import ChatInput from "../components/ChatInput";
 import { Link } from "react-router-dom";
 
 function Dashboard() {
@@ -119,17 +120,16 @@ function Dashboard() {
 
           </div>
 
-        </section>
+               </section>
 
-        <div className="chat-input">
-          <input
-            placeholder="Ask anything about your PDF..."
-          />
-
-          <button>
-            Send →
-          </button>
-        </div>
+        <ChatInput
+          onSend={(message) => {
+            console.log("Message:", message);
+          }}
+          onUpload={(file) => {
+            console.log("PDF selected:", file);
+          }}
+        />
 
       </main>
     </div>

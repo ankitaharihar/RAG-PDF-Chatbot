@@ -1,72 +1,83 @@
-# Multi-PDF RAG Chatbot..
+# Multi-PDF RAG Chatbot
 
-AI Document Intelligence Platform for chatting with multiple PDFs using OpenRouter, ChromaDB, and a persistent SQLite-backed PDF library.
+AI document assistant for chatting with multiple PDFs using Streamlit, LangChain, OpenRouter, ChromaDB, and SQLite-backed personal libraries.
 
-## Project Status
+## Project Overview
 
-### Completed
+This project lets each user:
 
-- User sign up and login with bcrypt password hashing
-- Personal PDF library with multi-file upload support
-- PDF selection for each chat session
-- Vector search over uploaded documents with ChromaDB
-- OpenRouter-powered answers with source citations
-- Per-user chat history stored in SQLite
-- Conversation memory for follow-up questions
-- Custom Streamlit UI styling for a chat-like experience
+- sign up and log in securely with bcrypt password hashing
+- upload multiple PDF files into a personal library
+- choose which documents are active for a chat
+- ask questions across the selected PDF set
+- receive grounded answers with source citations and page references
+- continue conversations with per-user chat history and memory
 
-### Pending
+## Rating
 
-- Replace the placeholder live demo URL with the deployed app link
-- Add screenshots for login, dashboard, and chat states
-- Add production-grade persistent storage for uploads, SQLite, and ChromaDB data on Render
-- Add automated tests beyond the current Python compile check
+6.5/10 — solid learning and portfolio project, but not yet production-grade.
 
-## Live Demo
+## What works well
 
-Live URL: https://your-app-url
+- Feature scope is broader than a basic upload-and-chat demo: auth, multi-user library, chats, and citations are all included.
+- The stack is sensible for a RAG prototype: Streamlit + LangChain + ChromaDB + OpenRouter.
+- Page-level citations improve trust and explainability.
+- The repo is organized into authentication, UI, PDF, and database modules instead of keeping everything in a single script.
+- The README is clear enough for recruiters and reviewers to understand the project quickly.
 
-## Screenshots
+## Key gaps
 
-Add screenshots here after deployment:
-
-- `assets/screenshots/login.png`
-- `assets/screenshots/dashboard.png`
-- `assets/screenshots/chat.png`
-
-## Features
-
-- Login and signup with bcrypt password hashing
-- Multi-PDF upload with personal PDF library
-- Select specific PDFs for each chat
-- ChromaDB vector search across uploaded documents
-- OpenRouter responses with source citations
-- Chat history saved per user in SQLite
-- Conversation memory for follow-up questions
-- ChatGPT-style UI with avatars and dark theme
-
-## Architecture
-
-```mermaid
-flowchart TD
-	U[User] --> S[Streamlit UI]
-	S --> A[Auth Layer\nSQLite + bcrypt]
-	S --> L[PDF Library\nSQLite metadata + stored files]
-	S --> V[ChromaDB Vector Store]
-	V --> O[OpenRouter LLM]
-	O --> S
-	S --> D[SQLite Chats + Messages]
-```
+- The app still relies on local file storage and SQLite for the demo, so restarts can lose data on Render free tier.
+- There are no automated tests for auth, chunking, or retrieval behavior.
+- There is no live deployment or screenshot gallery yet.
+- PDF upload validation is minimal and needs explicit size/type safeguards.
+- The RAG chunking and embedding strategy should be documented more clearly.
 
 ## Tech Stack
 
 - Frontend: Streamlit
 - Backend: Python
-- AI: LangChain, OpenRouter
-- Vector DB: ChromaDB
-- Database: SQLite
-- Authentication: bcrypt
+- AI orchestration: LangChain
+- LLM API: OpenRouter
+- Embeddings: Hugging Face sentence-transformers
+- Vector database: ChromaDB
+- Databases: SQLite for auth, library metadata, and chat history
+- Security: bcrypt
 - Deployment: Render
+
+## Architecture
+
+```mermaid
+flowchart TD
+    U[User] --> S[Streamlit UI]
+    S --> A[Auth Layer\nSQLite + bcrypt]
+    S --> P[PDF Library\nSQLite metadata + local file storage]
+    P --> V[ChromaDB Vector Store]
+    V --> O[OpenRouter LLM]
+    O --> S
+    S --> D[SQLite Chat History]
+```
+
+## RAG Strategy
+
+The vector store uses a recursive chunking strategy:
+
+- chunk size: 1000 characters
+- chunk overlap: 200 characters
+- embedding model: all-MiniLM-L6-v2 via Hugging Face
+
+This is configured in the RAG utility layer and is designed to balance context coverage with retrieval precision for PDF content.
+
+## Features
+
+- Login and signup with bcrypt password hashing
+- Multi-PDF upload with a per-user library
+- Selection of active PDFs for each chat
+- ChromaDB retrieval across uploaded documents
+- OpenRouter-powered LLM responses
+- Source citations with page references
+- Per-user chat history and memory for follow-up questions
+- Dark-mode chat UI inspired by modern assistant products
 
 ## Installation
 
@@ -83,15 +94,15 @@ venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 3. Set up environment variables
+### 3. Configure environment variables
 
-Create a `.env` file:
+Create a `.env` file in the project root:
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
-### 4. Run the app locally
+### 4. Run locally
 
 ```powershell
 streamlit run app.py
@@ -99,36 +110,82 @@ streamlit run app.py
 
 ## Deployment on Render
 
-This repository includes `render.yaml` for a Streamlit web service.
+This repo includes `render.yaml` for a Streamlit deployment.
 
-1. Push the repo to GitHub.
-2. Create a new Render Web Service from the repo.
-3. Add `OPENROUTER_API_KEY` as an environment variable in Render.
-4. Deploy using the provided `render.yaml` or the Render dashboard.
+1. Push the project to GitHub.
+2. Create a new Render Web Service from that repo.
+3. Add `OPENROUTER_API_KEY` in the Render environment variables.
+4. Deploy using the provided configuration.
 
 ### Important note
 
-Render free-tier instances do not provide durable local storage, so SQLite data, uploaded PDFs, and ChromaDB indexes can be lost on restart or redeploy. For a demo, this is acceptable. For production, move to PostgreSQL and cloud storage.
+Render free-tier storage is ephemeral. SQLite files, uploaded PDFs, and ChromaDB data can be lost after a restart or redeploy. For a demo, that is acceptable; for a production-grade deployment, move to PostgreSQL and cloud object storage.
+
+## Security and Validation
+
+The app includes basic file safety checks before saving uploads:
+
+- only PDF files are accepted
+- empty files are rejected
+- files larger than 20 MB are rejected
+
+This helps reduce invalid uploads and accidental storage misuse.
 
 ## Testing
 
+The project now includes a basic pytest suite for the most critical behaviors:
+
 ```powershell
-python -m py_compile app.py db.py
+pytest -q
+```
+
+If you want a quick syntax-only check:
+
+```powershell
+python -m py_compile app.py
 ```
 
 ## Project Structure
 
-- `app.py` - Streamlit application
-- `db.py` - SQLite helper functions
-- `requirements.txt` - Python dependencies
-- `render.yaml` - Render deployment config
+```text
+RAG-PDF-Chatbot/
+├── app.py
+├── README.md
+├── requirements.txt
+├── render.yaml
+├── auth/
+│   ├── auth.py
+│   ├── password_reset.py
+│   └── validators.py
+├── components/
+│   ├── chat_ui.py
+│   ├── forgot_password.py
+│   ├── landing.py
+│   ├── pdf_library.py
+│   ├── reset_password.py
+│   └── sidebar.py
+├── database/
+│   └── db.py
+├── services/
+│   ├── ai_service.py
+│   └── email_service.py
+├── utils/
+│   ├── pdf_utils.py
+│   ├── rag_utils.py
+│   └── ui_utils.py
+├── assets/
+│   └── pdf_library/
+├── tests/
+│   └── test_project_quality.py
+└── chat_history.db
+```
 
 ## Notes
 
-- Uploaded PDFs are stored in `pdf_library/` per user.
+- Uploaded PDFs are stored per user under `assets/pdf_library/user_<id>/`.
 - Existing chats can be reopened from the sidebar.
 - Chat answers include cited PDF sources and page numbers.
-- Render free-tier storage is temporary, so uploaded PDFs and indexes can be lost after restart.
+- The free-tier deployment model is fine for demo use, but not durable for production.
 
 ## License
 

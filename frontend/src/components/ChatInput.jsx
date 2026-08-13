@@ -29,14 +29,7 @@ function ChatInput({ onSend, onUpload }) {
   };
 
   return (
-    <div
-  className="chat-input-wrapper"
-  style={{
-    background: "red",
-    padding: "30px",
-    border: "5px solid yellow",
-  }}
->
+    <div className="chat-input-wrapper">
       {fileName && (
         <div className="selected-file">
           <span className="file-icon">📄</span>

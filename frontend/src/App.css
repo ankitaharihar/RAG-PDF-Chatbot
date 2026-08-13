@@ -1418,3 +1418,292 @@ footer {
     font-size: 21px;
   }
 }
+/* =========================
+   CHAT UI
+========================= */
+
+.chat-container {
+  width: min(900px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 30px 0 120px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+
+  text-align: left;
+}
+
+.chat-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.message-avatar {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+  background: #14233d;
+
+  font-size: 17px;
+}
+
+.message-content {
+  max-width: 78%;
+  min-width: 0;
+}
+
+.message-name {
+  margin-bottom: 6px;
+
+  color: #8fa4c3;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* =========================
+   MESSAGE TEXT
+========================= */
+
+.message-text {
+  color: #e7edf7;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.message-text p {
+  margin: 0 0 12px;
+}
+
+.message-text p:last-child {
+  margin-bottom: 0;
+}
+
+.message-text strong {
+  color: #ffffff;
+}
+
+.message-text h1,
+.message-text h2,
+.message-text h3 {
+  margin: 18px 0 8px;
+  color: #ffffff;
+}
+
+.message-text ul,
+.message-text ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.message-text li {
+  margin-bottom: 5px;
+}
+
+/* =========================
+   USER MESSAGE
+========================= */
+
+.user-message {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.user-message .message-content {
+  max-width: 65%;
+  padding: 12px 16px;
+
+  border-radius: 16px 16px 4px 16px;
+
+  background: #17243a;
+  border: 1px solid #263b5b;
+}
+
+.user-message .message-name {
+  text-align: right;
+}
+
+/* =========================
+   AI MESSAGE
+========================= */
+
+.assistant-message {
+  justify-content: flex-start;
+}
+
+.assistant-message .message-content {
+  max-width: 82%;
+}
+
+/* =========================
+   SOURCES
+========================= */
+
+.sources {
+  margin-top: 18px;
+
+  border: 1px solid #26354d;
+  border-radius: 12px;
+
+  background: #0d1523;
+  overflow: hidden;
+}
+
+.sources summary {
+  padding: 12px 15px;
+
+  cursor: pointer;
+
+  color: #8fb4e8;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sources summary:hover {
+  color: #ffffff;
+}
+
+.sources-list {
+  padding: 0 15px 15px;
+}
+
+.citation-item {
+  padding: 12px 0;
+
+  border-top: 1px solid #1b2a40;
+}
+
+.citation-item strong {
+  color: #dbeafe;
+  font-size: 13px;
+}
+
+.citation-item p {
+  margin: 6px 0 0;
+
+  color: #8095b3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* =========================
+   THINKING
+========================= */
+
+.thinking {
+  display: flex;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.thinking span {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+  background: #60a5fa;
+
+  animation: thinking 1.2s infinite ease-in-out;
+}
+
+.thinking span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.thinking-text {
+  margin: 4px 0 0;
+
+  color: #7185a3;
+  font-size: 13px;
+}
+
+/* =========================
+   SIDEBAR PDF
+========================= */
+
+.sidebar-pdf {
+  margin-top: 10px;
+  padding: 9px 10px;
+
+  color: #9db3d2;
+  font-size: 12px;
+  line-height: 1.4;
+
+  word-break: break-word;
+}
+
+.recent-chat {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 10px;
+
+  border: 0;
+  border-radius: 7px;
+
+  background: transparent;
+
+  color: #8fa4c3;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.recent-chat:hover {
+  background: #101c2e;
+  color: #ffffff;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+  .chat-container {
+    width: calc(100% - 24px);
+    padding-top: 20px;
+  }
+
+  .message-content {
+    max-width: 88%;
+  }
+
+  .assistant-message .message-content {
+    max-width: 88%;
+  }
+
+  .user-message .message-content {
+    max-width: 78%;
+  }
+
+  .message-text {
+    font-size: 14px;
+  }
+
+}

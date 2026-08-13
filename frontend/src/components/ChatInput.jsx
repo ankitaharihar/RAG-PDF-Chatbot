@@ -15,59 +15,59 @@ function ChatInput({ onSend, onUpload }) {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
+  const file = e.target.files?.[0];
 
-    if (!file) return;
+  if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      alert("Please upload a PDF file.");
-      return;
-    }
+  if (file.type !== "application/pdf") {
+    alert("Please upload a PDF file.");
+    return;
+  }
 
-    setFileName(file.name);
+  setFileName(file.name);
 
-    try {
-      const formData = new FormData();
+  try {
+    const formData = new FormData();
 
-      // Backend expects "user_id"
-      formData.append("user_id", "1");
+    formData.append("user_id", "1");
+    formData.append("files", file);
 
-      // Backend expects "files"
-      formData.append("files", file);
-
-      const response = await fetch("http://localhost:8000/api/upload", {
+    const response = await fetch(
+      "http://localhost:8000/api/upload",
+      {
         method: "POST",
         body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorMessage =
-          typeof data.detail === "string"
-            ? data.detail
-            : JSON.stringify(data.detail);
-
-        throw new Error(errorMessage || "Upload failed");
       }
+    );
 
-      console.log("Upload response:", data);
+    const data = await response.json();
 
-      alert("PDF uploaded successfully!");
+    if (!response.ok) {
+      const errorMessage =
+        typeof data.detail === "string"
+          ? data.detail
+          : JSON.stringify(data.detail);
 
-      onUpload?.(file, data);
-    } catch (error) {
-      console.error("PDF upload error:", error);
-
-      alert(error.message || "PDF upload failed.");
-
-      setFileName("");
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      throw new Error(errorMessage || "Upload failed");
     }
-  };
+
+    console.log("Upload response:", data);
+
+    // Dashboard ko uploaded PDF ki information bhejo
+    onUpload?.(file, data);
+
+  } catch (error) {
+    console.error("PDF upload error:", error);
+
+    alert(error.message || "PDF upload failed.");
+
+    setFileName("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+};
 
   return (
     <div className="chat-input-wrapper">

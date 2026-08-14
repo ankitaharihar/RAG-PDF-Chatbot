@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import ChatInput from "../components/ChatInput";
+import ChatInput from "../components/ChatInput/ChatInput";
+import "./Dashboard.css";
 
 function Dashboard() {
   const [pdfId, setPdfId] = useState(null);

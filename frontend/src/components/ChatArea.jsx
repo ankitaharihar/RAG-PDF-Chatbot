@@ -1,4 +1,5 @@
 import QuickActions from "./QuickActions";
+import "./ChatArea.css";
 
 function ChatArea() {
   return (

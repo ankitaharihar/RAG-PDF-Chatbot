@@ -1,3 +1,5 @@
+import "./QuickActions.css";
+
 function QuickActions() {
   const actions = [
     {

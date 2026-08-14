@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import "./Auth.css";
 
 function Login() {
   const navigate = useNavigate();

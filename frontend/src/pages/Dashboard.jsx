@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import ChatInput from "../components/ChatInput/ChatInput";
 import "./Dashboard.css";
+import remarkGfm from "remark-gfm";
 
 function Dashboard() {
   const [pdfId, setPdfId] = useState(null);
@@ -291,12 +292,11 @@ function Dashboard() {
                         ? "You"
                         : "PDF AI"}
                     </div>
-
-                    <div className="message-text">
-                      <ReactMarkdown>
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
+<div className="message-text markdown-content">
+  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+    {message.content}
+  </ReactMarkdown>
+</div>
 
 
                     {/* SOURCES */}

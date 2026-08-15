@@ -3,6 +3,27 @@ import uuid
 
 from langchain_community.document_loaders import PyPDFLoader
 
+MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024
+
+
+def validate_uploaded_file(uploaded_file):
+    """Validate the uploaded file for type and size before saving."""
+    if not uploaded_file or not getattr(uploaded_file, "name", ""):
+        raise ValueError("No file selected.")
+
+    filename = Path(uploaded_file.name).name.lower()
+    if not filename.endswith(".pdf"):
+        raise ValueError("Only PDF files are allowed for upload.")
+
+    file_bytes = uploaded_file.getbuffer()
+    if len(file_bytes) == 0:
+        raise ValueError("Uploaded PDF is empty.")
+
+    if len(file_bytes) > MAX_PDF_SIZE_BYTES:
+        raise ValueError("Uploaded PDF exceeds the 20 MB limit.")
+
+    return file_bytes
+
 
 def save_uploaded_pdfs(uploaded_files, user_id, db):
     library_dir = Path("assets") / "pdf_library" / f"user_{user_id}"
@@ -11,6 +32,8 @@ def save_uploaded_pdfs(uploaded_files, user_id, db):
     new_pdf_ids = []
 
     for uploaded_file in uploaded_files:
+        validate_uploaded_file(uploaded_file)
+
         stored_name = f"{uuid.uuid4().hex}_{Path(uploaded_file.name).name}"
         file_path = library_dir / stored_name
 
@@ -57,16 +80,15 @@ def build_citations(matched_docs):
             "Unknown PDF"
         )
 
-        page = doc.metadata.get("page")
-
-        citation = f"{source_name} (Page {page+1})"
+        page = doc.metadata.get("page", 0)
+        citation = f"{source_name} (Page {page + 1})"
 
         if citation in seen:
             continue
 
         seen.add(citation)
 
-        excerpt = doc.page_content[:300]
+        excerpt = (doc.page_content or "")[:300]
 
         citation_entries.append(
             (citation, excerpt)

@@ -27,13 +27,18 @@ def render_pdf_library(db):
 
     if uploaded_files:
 
-        with st.spinner("Uploading PDF..."):
-
-            new_pdf_ids = save_uploaded_pdfs(
-                uploaded_files,
-                st.session_state.user_id,
-                db
-            )
+        try:
+            with st.spinner("Uploading PDF..."):
+                new_pdf_ids = save_uploaded_pdfs(
+                    uploaded_files,
+                    st.session_state.user_id,
+                    db
+                )
+        except ValueError as exc:
+            st.warning(str(exc))
+            st.session_state.sidebar_upload_counter += 1
+            st.rerun()
+            return []
 
         # Automatically select uploaded PDFs
         st.session_state.active_pdf_ids = list(

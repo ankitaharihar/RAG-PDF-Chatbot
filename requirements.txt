@@ -1,4 +1,7 @@
 streamlit
+fastapi
+uvicorn
+python-multipart
 openai
 langchain
 langchain-community
@@ -13,3 +16,4 @@ torch
 torchvision
 bcrypt
 requests
+pytest

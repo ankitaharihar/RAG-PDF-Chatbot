@@ -1,0 +1,24 @@
+/* =========================================
+   APP GLOBAL STYLES
+========================================= */
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Prevent default button styles from interfering */
+
+button {
+  font-family: inherit;
+}
+
+/* Common focus style */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}

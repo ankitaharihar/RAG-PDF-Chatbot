@@ -10,23 +10,37 @@ from langchain_community.vectorstores import (
 )
 
 
+RAG_CHUNK_SIZE = 1000
+RAG_CHUNK_OVERLAP = 200
+
+
+def get_rag_config():
+    return {
+        "chunk_size": RAG_CHUNK_SIZE,
+        "chunk_overlap": RAG_CHUNK_OVERLAP,
+        "embedding_model": "all-MiniLM-L6-v2",
+    }
+
+
 @st.cache_resource
 def get_embeddings():
     return HuggingFaceEmbeddings(
-        model_name="all-MiniLM-L6-v2"
+        model_name=get_rag_config()["embedding_model"]
+    )
+
+
+def build_text_splitter():
+    config = get_rag_config()
+    return RecursiveCharacterTextSplitter(
+        chunk_size=config["chunk_size"],
+        chunk_overlap=config["chunk_overlap"],
     )
 
 
 def create_vectorstore(documents):
+    splitter = build_text_splitter()
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
-    )
-
-    split_docs = splitter.split_documents(
-        documents
-    )
+    split_docs = splitter.split_documents(documents)
 
     embeddings = get_embeddings()
 

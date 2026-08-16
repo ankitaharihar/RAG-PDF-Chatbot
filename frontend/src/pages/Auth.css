@@ -508,3 +508,8 @@
     margin: 14px 0;
   }
 }
+.google-login-button {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}

@@ -165,14 +165,31 @@ def signup(request: SignupRequest) -> dict:
         password_hash=password_hash,
     )
 
+    # Create JWT token immediately after signup
+    token_payload = {
+        "sub": str(user_id),
+        "email": email,
+        "username": username,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+    }
+
+    access_token = jwt.encode(
+        token_payload,
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
     return {
         "message": "Account created successfully.",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": user_id,
             "username": username,
             "email": email,
         },
     }
+
 @app.post("/api/auth/login")
 def login(request: LoginRequest) -> dict:
     email = request.email.strip().lower()

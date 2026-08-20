@@ -197,6 +197,9 @@ def login(request: LoginRequest) -> dict:
 
     user = db.get_user_by_email(email)
 
+    print("LOGIN EMAIL:", email)
+    print("USER FOUND:", user is not None)
+
     if not user:
         raise HTTPException(
             status_code=401,
@@ -382,13 +385,29 @@ def chat(request: ChatRequest) -> ChatResponse:
     matched_docs, context = retrieve_context(vectorstore, question)
 
     prompt = f"""
-You are a helpful PDF assistant.
+You are a PDF question-answering assistant.
+
+You must answer the user's question using ONLY the information provided in the Context below.
+
+STRICT RULES:
+1. Do NOT use outside knowledge.
+2. Do NOT guess, assume, or invent information.
+3. Do NOT mention institutions, universities, organizations, locations, or facts unless they are explicitly present in the Context.
+4. If the answer is not clearly available in the Context, say exactly:
+   "I couldn't find this information in the selected PDF."
+5. Do not explain abbreviations or codes using general knowledge unless their meaning is explicitly stated in the Context.
+6. If the Context contains incomplete information, clearly say that the information is incomplete.
+7. Give a direct and concise answer to the Question.
 
 Context:
+--- START OF PDF CONTEXT ---
 {context}
+--- END OF PDF CONTEXT ---
 
 Question:
 {question}
+
+Answer:
 """
 
     response = _get_client().chat.completions.create(

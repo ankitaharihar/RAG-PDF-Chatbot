@@ -123,14 +123,30 @@ def update_user_password(user_id: int, password_hash: str):
 def get_user_by_email(email: str):
     conn = get_conn()
     c = conn.cursor()
+
+    print("SEARCHING EMAIL:", repr(email.lower().strip()))
+
     c.execute(
         "SELECT id, username, email, password_hash FROM users WHERE email = ?",
         (email.lower().strip(),),
     )
+
     row = c.fetchone()
+
+    print("DATABASE RESULT:", row)
+
     conn.close()
     return row
+def debug_users():
+    conn = get_conn()
+    c = conn.cursor()
 
+    c.execute("SELECT id, username, email FROM users")
+    rows = c.fetchall()
+
+    conn.close()
+
+    print("ALL USERS:", rows)
 
 def get_user_by_id(user_id: int):
     conn = get_conn()

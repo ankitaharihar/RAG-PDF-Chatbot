@@ -10,7 +10,19 @@ function Dashboard() {
   const [pdfName, setPdfName] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+ const storedUser = localStorage.getItem("user");
 
+let user = null;
+
+try {
+  user = storedUser && storedUser !== "undefined"
+    ? JSON.parse(storedUser)
+    : null;
+} catch (error) {
+  console.error("Invalid user data in localStorage:", error);
+  localStorage.removeItem("user");
+}
   const handleUpload = (file, data) => {
     console.log("PDF uploaded:", file);
     console.log("Upload response:", data);
@@ -99,11 +111,21 @@ function Dashboard() {
   };
 
   return (
-    <div className="dashboard">
+ <div
+  className={`dashboard ${
+    focusMode && messages.length > 0 ? "focus-mode" : ""
+  }`}
+>
 
       {/* SIDEBAR */}
       <aside className="sidebar">
-
+<button
+  className="close-focus-btn"
+  onClick={() => setFocusMode(true)}
+  title="Focus mode"
+>
+  ✕
+</button>
         <Link to="/" className="brand">
           📚 PDF AI
         </Link>
@@ -158,7 +180,7 @@ function Dashboard() {
             </div>
 
             <div>
-              <strong>Student</strong>
+              <strong>{user?.username || "Student"}</strong>
               <small>Free Plan</small>
             </div>
           </div>
@@ -173,7 +195,12 @@ function Dashboard() {
 
       {/* MAIN */}
       <main className="dashboard-main">
-
+<button
+  className="open-focus-btn"
+  onClick={() => setFocusMode(false)}
+>
+  ☰
+</button>
         {/* HEADER */}
         <header className="dashboard-header">
 
@@ -182,11 +209,7 @@ function Dashboard() {
               YOUR WORKSPACE
             </p>
 
-            <h1>
-              {messages.length > 0
-                ? "Ask your PDF anything"
-                : "What would you like to learn?"}
-            </h1>
+            <h1>Ask your PDF anything</h1>
 
             <p>
               {pdfName
@@ -208,60 +231,7 @@ function Dashboard() {
         {/* CONTENT */}
         <section className="dashboard-content">
 
-          {/* EMPTY STATE */}
-          {messages.length === 0 && !loading && (
-            <>
-              <div className="welcome-icon">
-                🤖
-              </div>
-
-              <h2>
-                Start with your documents
-              </h2>
-
-              <p className="dashboard-description">
-                {pdfName
-                  ? "Your PDF is ready. Ask your first question."
-                  : "Your AI study assistant is ready. Upload a PDF to begin."}
-              </p>
-
-              <div className="dashboard-actions">
-
-                <div className="dashboard-card">
-                  <span>📝</span>
-                  <h3>Generate Notes</h3>
-                  <p>
-                    Create structured notes from your PDF.
-                  </p>
-                </div>
-
-                <div className="dashboard-card">
-                  <span>✨</span>
-                  <h3>Summarize</h3>
-                  <p>
-                    Get a quick summary of your document.
-                  </p>
-                </div>
-
-                <div className="dashboard-card">
-                  <span>🎯</span>
-                  <h3>Generate MCQs</h3>
-                  <p>
-                    Create practice questions from your PDF.
-                  </p>
-                </div>
-
-                <div className="dashboard-card">
-                  <span>🎤</span>
-                  <h3>Interview Questions</h3>
-                  <p>
-                    Prepare interview questions from your material.
-                  </p>
-                </div>
-
-              </div>
-            </>
-          )}
+        
 
 
           {/* CHAT */}

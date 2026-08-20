@@ -40,12 +40,14 @@ function Signup() {
       );
 
       const data = await response.json();
+if (!response.ok) {
+  const errorMessage = Array.isArray(data.detail)
+    ? data.detail.map((err) => err.msg).join(", ")
+    : data.detail || "Signup failed";
 
-      if (!response.ok) {
-        alert(data.detail || "Signup failed.");
-        return;
-      }
-
+  alert(errorMessage);
+  return;
+}
      alert("Account created successfully!");
 
 localStorage.setItem("access_token", data.access_token);

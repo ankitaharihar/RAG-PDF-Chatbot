@@ -336,13 +336,13 @@
 
 .dashboard-content {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 
   width: min(1050px, calc(100% - 80px));
-
   margin: 0 auto;
 
   padding: 70px 0 90px;
-
   box-sizing: border-box;
 
   text-align: center;
@@ -653,9 +653,8 @@
 
 /* Main dashboard */
 .dashboard-main {
-  flex: 1;
   height: 100vh;
-  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -670,14 +669,7 @@
 .dashboard-content {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  padding: 24px 40px;
+  overflow-y: auto;
 }
 
 /* Cards */
@@ -1404,4 +1396,84 @@
   color: #6da9ff;
   font-size: 14px;
   margin-top: 8px;
+}
+.dashboard {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  height: 100vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-container {
+  width: 100%;
+}
+.close-focus-btn,
+.open-focus-btn {
+  border: none;
+  background: transparent;
+  color: #9fb5d6;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.close-focus-btn {
+  position: absolute;
+  top: 20px;
+  right: 18px;
+}
+
+.sidebar {
+  position: relative;
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.dashboard-main {
+  transition: all 0.3s ease;
+}
+
+/* Focus Mode */
+.focus-mode .sidebar {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  border: none;
+}
+
+.focus-mode .dashboard-main {
+  width: 100%;
+}
+
+/* Hide top workspace/header while chatting */
+.focus-mode .dashboard-header {
+  display: none;
+}
+
+.open-focus-btn {
+  display: none;
+}
+
+.focus-mode .open-focus-btn {
+  display: block;
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: #172235;
+  border: 1px solid #29405f;
+  border-radius: 8px;
 }

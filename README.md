@@ -1,4 +1,4 @@
-# 📚 PDF AI — RAG PDF Chatbot
+# 📚 PDF AI — RAG PDF Chatbot...
 
 An AI-powered PDF chatbot that allows users to upload their PDF documents and ask questions about them using Retrieval-Augmented Generation (RAG).
 
